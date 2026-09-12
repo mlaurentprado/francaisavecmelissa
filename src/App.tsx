@@ -75,7 +75,7 @@ export function App() {
     setTotalPoints((prev) => prev + earned);
   };
 
-  const handleCompleteDictee = (id: string, correct: boolean) => {
+  const handleCompleteDictee = (_id: string, correct: boolean) => {
     if (correct) {
       setTotalPoints((prev) => prev + 25);
     }

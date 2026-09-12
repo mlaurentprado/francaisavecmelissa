@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   BookmarkCheck,
   MessageCircle,
-  Coffee,
   Mic,
 } from 'lucide-react';
 import { speechService } from '../services/speech';
