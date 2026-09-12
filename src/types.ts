@@ -1,6 +1,6 @@
 export type Level = 'A1' | 'A2' | 'B1' | 'C1';
 
-export type TabType = 'flashcards' | 'quiz' | 'dictee' | 'fiches' | 'revisions';
+export type TabType = 'flashcards' | 'quiz' | 'dictee' | 'fiches' | 'revisions' | 'portal';
 
 export interface LevelConfig {
   id: Level;
@@ -69,4 +69,46 @@ export interface StudentProgress {
   completedDictees: string[];
   streakDays: number;
   totalPoints: number;
+}
+
+// --- PORTAL DO ALUNO & PROFESSORA ---
+
+export interface StudentProfile {
+  id: string;
+  name: string;
+  email: string;
+  pin: string; // 4 dígitos
+  level: Level;
+  avatarUrl?: string;
+  totalPoints: number;
+  streakDays: number;
+  completedWeekIds: string[];
+  registeredAt: string;
+}
+
+export interface WeeklyLessonContent {
+  flashcards: Flashcard[];
+  quizzes: QuizQuestion[];
+  dictees: DicteeItem[];
+}
+
+export interface WeeklyModule {
+  id: string;
+  weekNumber: number;
+  title: string;
+  level: Level;
+  date: string;
+  summaryNotes: string;
+  videoUrl?: string;
+  videoTitle?: string;
+  pdfUrl?: string;
+  pdfFileName?: string;
+  pdfFileSize?: string;
+  lessons: WeeklyLessonContent;
+  createdAt: string;
+}
+
+export interface AuthSession {
+  currentUser: StudentProfile | null;
+  isTeacher: boolean;
 }
