@@ -291,6 +291,16 @@ class StudentPortalService {
     }
   }
 
+  public deleteStudent(id: string): boolean {
+    this.students = this.students.filter((s) => s.id !== id);
+    this.saveStudents();
+    if (this.currentSession.currentUser?.id === id) {
+      this.currentSession.currentUser = null;
+      this.saveSession();
+    }
+    return true;
+  }
+
   // --- WEEKS MANAGEMENT (TEACHER & STUDENT) ---
 
   public getWeeklyModules(levelFilter?: Level): WeeklyModule[] {

@@ -70,6 +70,22 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
     setNewStudentPin('1234');
   };
 
+  const handleDeleteStudent = (student: StudentProfile) => {
+    const studentWeeksCount = weeks.filter((w) => w.studentId === student.id).length;
+    const warningMsg =
+      studentWeeksCount > 0
+        ? `Deseja realmente retirar "${student.name}" da lista de alunos?\n\nEste aluno possui ${studentWeeksCount} aula(s) associada(s). O cadastro do aluno será removido e ele não conseguirá mais entrar com seu PIN.`
+        : `Deseja realmente retirar "${student.name}" da lista de alunos?`;
+
+    if (confirm(warningMsg)) {
+      studentPortalService.deleteStudent(student.id);
+      setStudents(studentPortalService.getStudents());
+      if (studentFilter === student.id) {
+        setStudentFilter('ALL');
+      }
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-fadeIn text-left">
       {/* Teacher Welcome Header */}
@@ -283,47 +299,96 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
       {/* TAB 2: STUDENTS LIST */}
       {activeTab === 'students' && (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {students.map((student) => (
-              <div
-                key={student.id}
-                className="bg-white rounded-2xl border border-[#EBE4D8] p-5 shadow-2xs space-y-3"
+          {/* Top Bar for Students management */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FAF7F2] p-4 rounded-2xl border border-[#EBE4D8]">
+            <div className="space-y-0.5">
+              <h4 className="font-bold text-sm text-[#0F172A] flex items-center gap-2">
+                <Users className="w-4 h-4 text-[#8B2626]" />
+                <span>Gestão de Alunos ({students.length} matriculados)</span>
+              </h4>
+              <p className="text-xs text-[#5A6578]">
+                Adicione novos alunos à turma ou retire alunos da lista a qualquer momento.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsAddStudentOpen(true)}
+              className="py-2.5 px-4 rounded-xl bg-[#8B2626] hover:bg-[#731E1E] text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 self-start sm:self-auto shrink-0"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>+ Adicionar Aluno</span>
+            </button>
+          </div>
+
+          {students.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-[#EBE4D8] p-8 text-center space-y-3">
+              <p className="text-sm text-[#5A6578]">Nenhum aluno cadastrado no momento.</p>
+              <button
+                type="button"
+                onClick={() => setIsAddStudentOpen(true)}
+                className="py-2.5 px-5 rounded-xl bg-[#8B2626] hover:bg-[#731E1E] text-white text-xs font-bold transition-all shadow-xs"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-10 h-10 rounded-full bg-[#8B2626] text-white flex items-center justify-center font-cormorant text-xl font-bold">
-                      {student.name.charAt(0)}
+                + Adicionar Primeiro Aluno
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {students.map((student) => (
+                <div
+                  key={student.id}
+                  className="bg-white rounded-2xl border border-[#EBE4D8] p-5 shadow-2xs space-y-3 flex flex-col justify-between"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-[#8B2626] text-white flex items-center justify-center font-cormorant text-xl font-bold shrink-0">
+                          {student.name.charAt(0)}
+                        </div>
+                        <div className="truncate">
+                          <h5 className="font-bold text-[#0F172A] text-sm truncate">{student.name}</h5>
+                          <span className="text-[11px] text-[#78644E] font-semibold">Nível {student.level}</span>
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold text-[#8B2626] bg-[#FCE7E7] px-2.5 py-0.5 rounded-full shrink-0">
+                        {student.totalPoints} pts
+                      </span>
                     </div>
-                    <div>
-                      <h5 className="font-bold text-[#0F172A] text-sm">{student.name}</h5>
-                      <span className="text-[11px] text-[#78644E] font-semibold">Nível {student.level}</span>
+
+                    <div className="pt-2 border-t border-[#F2ECE3] text-xs space-y-1 text-[#5A6578]">
+                      <p><strong>PIN de Acesso:</strong> <code className="bg-[#FAF7F2] px-1.5 py-0.5 rounded text-[#0F172A] font-bold">{student.pin}</code></p>
+                      <p><strong>Semanas Concluídas:</strong> {student.completedWeekIds.length}</p>
+                      <p><strong>Sequência de Estudos:</strong> {student.streakDays} dias seguidos</p>
                     </div>
                   </div>
-                  <span className="text-xs font-bold text-[#8B2626] bg-[#FCE7E7] px-2.5 py-0.5 rounded-full">
-                    {student.totalPoints} pts
-                  </span>
-                </div>
 
-                <div className="pt-2 border-t border-[#F2ECE3] text-xs space-y-1 text-[#5A6578]">
-                  <p><strong>PIN de Acesso:</strong> <code className="bg-[#FAF7F2] px-1.5 py-0.5 rounded text-[#0F172A]">{student.pin}</code></p>
-                  <p><strong>Semanas Concluídas:</strong> {student.completedWeekIds.length}</p>
-                  <p><strong>Sequência de Estudos:</strong> {student.streakDays} dias seguidos</p>
-                </div>
+                  {/* Actions: Ver Aulas + Retirar Aluno */}
+                  <div className="pt-2 border-t border-[#F2ECE3] flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStudentFilter(student.id);
+                        setActiveTab('weeks');
+                      }}
+                      className="flex-1 py-2 px-3 rounded-xl border border-[#D4C8B8] hover:bg-[#FAF7F2] text-xs font-semibold text-[#8B2626] transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                      <span>Ver Aulas ({weeks.filter((w) => w.studentId === student.id).length})</span>
+                    </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStudentFilter(student.id);
-                    setActiveTab('weeks');
-                  }}
-                  className="w-full mt-2 py-2 px-3 rounded-xl border border-[#D4C8B8] hover:bg-[#FAF7F2] text-xs font-semibold text-[#8B2626] transition-colors flex items-center justify-center gap-1.5"
-                >
-                  <Layers className="w-3.5 h-3.5" />
-                  <span>Ver Aulas deste Aluno ({weeks.filter((w) => w.studentId === student.id).length})</span>
-                </button>
-              </div>
-            ))}
-          </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteStudent(student)}
+                      className="p-2 rounded-xl border border-rose-200 hover:bg-rose-50 text-rose-600 transition-colors shrink-0"
+                      title={`Retirar ${student.name} da lista`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
