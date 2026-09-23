@@ -418,7 +418,7 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
             }`}
           >
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>{isKnown ? 'Compris ! ✨' : 'Je sais ! (Entendi)'}</span>
+            <span>{isKnown ? 'J\'ai compris ! ✨' : 'J\'ai compris ! (Entendi)'}</span>
           </button>
         </div>
       </div>
