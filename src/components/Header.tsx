@@ -40,16 +40,16 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="bg-[#FAF7F2]/95 backdrop-blur-md border-b border-[#EBE4D8] sticky top-0 z-40">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="h-20 flex items-center justify-between gap-4">
+        <div className="h-16 sm:h-18 flex items-center justify-between gap-4">
           {/* Brand Logo with golden sparkle ✦ */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 cursor-pointer" onClick={() => onSelectTab('flashcards')}>
-              <span className="font-cormorant text-2xl sm:text-3xl font-bold text-[#0F172A] tracking-tight">
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-1.5 cursor-pointer group" onClick={() => onSelectTab('flashcards')}>
+              <span className="font-cormorant text-lg sm:text-xl font-bold text-[#0F172A] tracking-normal group-hover:text-[#8B2626] transition-colors">
                 Français avec Melissa
               </span>
-              <span className="text-[#C59B27] text-xl sm:text-2xl select-none">✦</span>
+              <span className="text-[#C59B27] text-base select-none">✦</span>
             </div>
-            <span className="hidden lg:inline-block text-xs uppercase tracking-widest text-[#78644E] font-medium pl-2 border-l border-[#E3D9C9]">
+            <span className="hidden lg:inline-block text-[11px] uppercase tracking-wider text-[#78644E] font-medium pl-2 border-l border-[#E3D9C9]">
               Espace Élèves
             </span>
           </div>
