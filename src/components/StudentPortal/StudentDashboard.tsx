@@ -25,13 +25,23 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   student,
   onLogout,
 }) => {
-  const [weeks, setWeeks] = useState<WeeklyModule[]>(() => studentPortalService.getWeeklyModules());
+  const [weeks, setWeeks] = useState<WeeklyModule[]>(() =>
+    studentPortalService.getWeeklyModulesForStudent(student.id)
+  );
   const [selectedWeekForLesson, setSelectedWeekForLesson] = useState<WeeklyModule | null>(null);
   const [expandedWeekId, setExpandedWeekId] = useState<string | null>(weeks[0]?.id || null);
 
+  React.useEffect(() => {
+    const studentWeeks = studentPortalService.getWeeklyModulesForStudent(student.id);
+    setWeeks(studentWeeks);
+    if (studentWeeks.length > 0) {
+      setExpandedWeekId(studentWeeks[0].id);
+    }
+  }, [student.id]);
+
   const handleLessonCompleted = () => {
     setSelectedWeekForLesson(null);
-    setWeeks(studentPortalService.getWeeklyModules());
+    setWeeks(studentPortalService.getWeeklyModulesForStudent(student.id));
   };
 
   const toggleWeek = (id: string) => {
@@ -152,7 +162,22 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           </span>
         </div>
 
-        {weeks.map((module) => {
+        {weeks.length === 0 ? (
+          <div className="bg-white rounded-3xl border border-[#EBE4D8] p-8 sm:p-12 text-center space-y-4 shadow-2xs">
+            <div className="w-14 h-14 rounded-2xl bg-[#FAF7F2] text-[#8B2626] mx-auto flex items-center justify-center border border-[#DDD3C1]">
+              <Sparkles className="w-7 h-7 text-[#C59B27]" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="font-cormorant text-2xl sm:text-3xl font-bold text-[#0F172A]">
+                Nenhuma aula postada ainda para você
+              </h4>
+              <p className="text-xs sm:text-sm text-[#5A6578] max-w-md mx-auto">
+                A professora Melissa publicará suas gravações de aula e materiais em PDF logo após seu próximo encontro particular.
+              </p>
+            </div>
+          </div>
+        ) : (
+          weeks.map((module) => {
           const isCompleted = student.completedWeekIds.includes(module.id);
           const isExpanded = expandedWeekId === module.id;
           const embedUrl = getEmbedVideoUrl(module.videoUrl);
@@ -305,7 +330,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
               )}
             </div>
           );
-        })}
+        }))}
       </div>
     </div>
   );

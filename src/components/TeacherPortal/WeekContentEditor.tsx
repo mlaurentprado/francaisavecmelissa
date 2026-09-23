@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { WeeklyModule, Level, WeeklyLessonContent } from '../../types';
 import { lessonGeneratorService } from '../../services/lessonGeneratorService';
-import { X, Sparkles, Video, FileText, CheckCircle2 } from 'lucide-react';
+import { studentPortalService } from '../../services/studentPortalService';
+import { X, Sparkles, Video, FileText, CheckCircle2, UserCheck } from 'lucide-react';
 
 interface WeekContentEditorProps {
   initialModule?: WeeklyModule;
@@ -14,6 +15,10 @@ export const WeekContentEditor: React.FC<WeekContentEditorProps> = ({
   onSave,
   onCancel,
 }) => {
+  const students = studentPortalService.getStudents();
+  const [studentId, setStudentId] = useState<string>(
+    initialModule?.studentId || (students[0]?.id ?? 'ALL')
+  );
   const [weekNumber, setWeekNumber] = useState<number>(initialModule?.weekNumber || 1);
   const [title, setTitle] = useState<string>(initialModule?.title || '');
   const [level, setLevel] = useState<Level>(initialModule?.level || 'A1');
@@ -81,8 +86,13 @@ export const WeekContentEditor: React.FC<WeekContentEditorProps> = ({
       return;
     }
 
+    const selectedStudent = students.find((s) => s.id === studentId);
+    const studentName = studentId === 'ALL' ? 'Todos os Alunos' : (selectedStudent?.name || 'Aluno');
+
     onSave({
       id: initialModule?.id,
+      studentId,
+      studentName,
       weekNumber,
       title,
       level,
@@ -120,6 +130,39 @@ export const WeekContentEditor: React.FC<WeekContentEditorProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6 text-left">
+          {/* Seletor de Aluno Destinatário */}
+          <div className="bg-[#FAF7F2] p-4 rounded-2xl border border-[#EBE4D8] space-y-2">
+            <label className="block text-xs font-bold text-[#8B2626] flex items-center gap-1.5">
+              <UserCheck className="w-4 h-4 text-[#8B2626]" />
+              <span>Aluno(a) Destinatário(a) desta Aula :</span>
+            </label>
+            <p className="text-[11px] text-[#5A6578]">
+              🔒 <strong>Privacidade Total:</strong> Apenas o aluno selecionado terá acesso a esta gravação, notas e materiais quando entrar com seu PIN no Portal do Aluno.
+            </p>
+            <select
+              value={studentId}
+              onChange={(e) => {
+                const sId = e.target.value;
+                setStudentId(sId);
+                const match = students.find((s) => s.id === sId);
+                if (match && !initialModule) {
+                  setLevel(match.level);
+                }
+              }}
+              className="w-full p-2.5 rounded-xl border border-[#D4C8B8] focus:border-[#8B2626] outline-none text-xs sm:text-sm font-bold bg-white text-[#0F172A]"
+            >
+              <optgroup label="Alunos Individuais (Aulas Particulares)">
+                {students.map((std) => (
+                  <option key={std.id} value={std.id}>
+                    {std.name} (Nível {std.level} • PIN: {std.pin})
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Turma Aberta">
+                <option value="ALL">Todos os Alunos (Compartilhado com toda a turma)</option>
+              </optgroup>
+            </select>
+          </div>
           {/* Main info grid */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>

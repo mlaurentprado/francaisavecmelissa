@@ -15,6 +15,8 @@ import {
   Layers,
   UserPlus,
   X,
+  User,
+  UserCheck,
 } from 'lucide-react';
 
 interface TeacherDashboardProps {
@@ -27,6 +29,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
   const [editingModule, setEditingModule] = useState<WeeklyModule | undefined>(undefined);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'weeks' | 'students'>('weeks');
+  const [studentFilter, setStudentFilter] = useState<string>('ALL');
 
   // New Student modal state
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
@@ -155,75 +158,125 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
       {/* TAB 1: WEEKS LIST */}
       {activeTab === 'weeks' && (
         <div className="space-y-4">
-          {weeks.map((module) => (
-            <div
-              key={module.id}
-              className="bg-white rounded-2xl border border-[#EBE4D8] p-5 sm:p-6 shadow-2xs space-y-3"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="font-bold px-2.5 py-0.5 rounded-full bg-[#FAF7F2] text-[#78644E] border border-[#DDD3C1]">
-                      Semana {module.weekNumber}
-                    </span>
-                    <span className="font-bold px-2 py-0.5 rounded-full bg-[#EFE8DC] text-[#63513D]">
-                      Nível {module.level}
-                    </span>
-                    <span className="text-[#8C7A6B]">{module.date}</span>
+          {/* Student Filter Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FAF7F2] p-3.5 rounded-2xl border border-[#EBE4D8]">
+            <div className="flex items-center gap-2 text-xs font-semibold text-[#0F172A]">
+              <UserCheck className="w-4 h-4 text-[#8B2626]" />
+              <span>Filtrar por aluno:</span>
+              <select
+                value={studentFilter}
+                onChange={(e) => setStudentFilter(e.target.value)}
+                className="p-1.5 px-3 rounded-xl border border-[#D4C8B8] bg-white text-xs font-bold text-[#0F172A] outline-none"
+              >
+                <option value="ALL">Todos os Alunos ({weeks.length} aulas)</option>
+                {students.map((std) => {
+                  const count = weeks.filter((w) => w.studentId === std.id).length;
+                  return (
+                    <option key={std.id} value={std.id}>
+                      {std.name} ({count} aulas)
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+            <span className="text-xs text-[#5A6578]">
+              Mostrando {weeks.filter((w) => studentFilter === 'ALL' || w.studentId === studentFilter).length} de {weeks.length} aulas cadastradas
+            </span>
+          </div>
+
+          {weeks.filter((w) => studentFilter === 'ALL' || w.studentId === studentFilter).length === 0 ? (
+            <div className="bg-white rounded-2xl border border-[#EBE4D8] p-8 text-center space-y-3">
+              <p className="text-sm text-[#5A6578]">
+                Nenhuma aula cadastrada para este aluno ainda.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingModule(undefined);
+                  setIsEditorOpen(true);
+                }}
+                className="py-2.5 px-5 rounded-xl bg-[#8B2626] hover:bg-[#731E1E] text-white text-xs font-bold transition-all shadow-xs"
+              >
+                + Criar Primeira Aula para este Aluno
+              </button>
+            </div>
+          ) : (
+            weeks
+              .filter((w) => studentFilter === 'ALL' || w.studentId === studentFilter)
+              .map((module) => (
+                <div
+                  key={module.id}
+                  className="bg-white rounded-2xl border border-[#EBE4D8] p-5 sm:p-6 shadow-2xs space-y-3"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="font-bold px-2.5 py-0.5 rounded-full bg-[#FAF7F2] text-[#78644E] border border-[#DDD3C1]">
+                          Semana {module.weekNumber}
+                        </span>
+                        <span className="font-bold px-2 py-0.5 rounded-full bg-[#EFE8DC] text-[#63513D]">
+                          Nível {module.level}
+                        </span>
+                        <span className="font-bold px-2.5 py-0.5 rounded-full bg-[#8B2626]/10 text-[#8B2626] border border-[#8B2626]/20 flex items-center gap-1">
+                          <User className="w-3 h-3" />
+                          <span>{module.studentId === 'ALL' ? '👥 Turma Aberta' : `👤 Aluno: ${module.studentName}`}</span>
+                        </span>
+                        <span className="text-[#8C7A6B]">{module.date}</span>
+                      </div>
+
+                      <h4 className="font-cormorant text-2xl font-bold text-[#0F172A]">
+                        {module.title}
+                      </h4>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingModule(module);
+                          setIsEditorOpen(true);
+                        }}
+                        className="p-2 rounded-lg border border-[#D4C8B8] hover:bg-[#FAF7F2] text-[#0F172A] transition-colors"
+                        title="Editar"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteWeek(module.id)}
+                        className="p-2 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-700 transition-colors"
+                        title="Excluir"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
 
-                  <h4 className="font-cormorant text-2xl font-bold text-[#0F172A]">
-                    {module.title}
-                  </h4>
+                  {/* Attachments pills */}
+                  <div className="flex flex-wrap items-center gap-3 pt-2 text-xs font-semibold text-[#78644E] border-t border-[#F2ECE3]">
+                    {module.videoUrl && (
+                      <span className="flex items-center gap-1 bg-[#FAF7F2] px-2.5 py-1 rounded-lg border border-[#DDD3C1]">
+                        <Video className="w-3.5 h-3.5 text-[#8B2626]" />
+                        <span>Vídeo gravado</span>
+                      </span>
+                    )}
+                    {module.pdfUrl && (
+                      <span className="flex items-center gap-1 bg-[#FAF7F2] px-2.5 py-1 rounded-lg border border-[#DDD3C1]">
+                        <FileText className="w-3.5 h-3.5 text-[#8B2626]" />
+                        <span>PDF: {module.pdfFileName}</span>
+                      </span>
+                    )}
+                    <span className="flex items-center gap-1 bg-emerald-50 text-emerald-800 px-2.5 py-1 rounded-lg border border-emerald-200">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>
+                        {module.lessons.flashcards.length} cards • {module.lessons.quizzes.length} quizzes • {module.lessons.dictees.length} ditados
+                      </span>
+                    </span>
+                  </div>
                 </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingModule(module);
-                      setIsEditorOpen(true);
-                    }}
-                    className="p-2 rounded-lg border border-[#D4C8B8] hover:bg-[#FAF7F2] text-[#0F172A] transition-colors"
-                    title="Editar"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteWeek(module.id)}
-                    className="p-2 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-700 transition-colors"
-                    title="Excluir"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Attachments pills */}
-              <div className="flex flex-wrap items-center gap-3 pt-2 text-xs font-semibold text-[#78644E] border-t border-[#F2ECE3]">
-                {module.videoUrl && (
-                  <span className="flex items-center gap-1 bg-[#FAF7F2] px-2.5 py-1 rounded-lg border border-[#DDD3C1]">
-                    <Video className="w-3.5 h-3.5 text-[#8B2626]" />
-                    <span>Vídeo incorporado</span>
-                  </span>
-                )}
-                {module.pdfUrl && (
-                  <span className="flex items-center gap-1 bg-[#FAF7F2] px-2.5 py-1 rounded-lg border border-[#DDD3C1]">
-                    <FileText className="w-3.5 h-3.5 text-[#8B2626]" />
-                    <span>PDF anexado: {module.pdfFileName}</span>
-                  </span>
-                )}
-                <span className="flex items-center gap-1 bg-emerald-50 text-emerald-800 px-2.5 py-1 rounded-lg border border-emerald-200">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>
-                    {module.lessons.flashcards.length} cards • {module.lessons.quizzes.length} quizzes • {module.lessons.dictees.length} ditados
-                  </span>
-                </span>
-              </div>
-            </div>
-          ))}
+              ))
+          )}
         </div>
       )}
 
@@ -256,6 +309,18 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
                   <p><strong>Semanas Concluídas:</strong> {student.completedWeekIds.length}</p>
                   <p><strong>Sequência de Estudos:</strong> {student.streakDays} dias seguidos</p>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStudentFilter(student.id);
+                    setActiveTab('weeks');
+                  }}
+                  className="w-full mt-2 py-2 px-3 rounded-xl border border-[#D4C8B8] hover:bg-[#FAF7F2] text-xs font-semibold text-[#8B2626] transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>Ver Aulas deste Aluno ({weeks.filter((w) => w.studentId === student.id).length})</span>
+                </button>
               </div>
             ))}
           </div>

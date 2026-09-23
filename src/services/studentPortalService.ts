@@ -1,9 +1,9 @@
 import { StudentProfile, WeeklyModule, AuthSession, Level } from '../types';
 
 const STORAGE_KEYS = {
-  STUDENTS: 'fam_portal_students_v1',
-  WEEKS: 'fam_portal_weeks_v1',
-  SESSION: 'fam_portal_session_v1',
+  STUDENTS: 'fam_portal_students_v2',
+  WEEKS: 'fam_portal_weeks_v2',
+  SESSION: 'fam_portal_session_v2',
 };
 
 // Initial Mock Students
@@ -47,6 +47,8 @@ const INITIAL_STUDENTS: StudentProfile[] = [
 const INITIAL_WEEKS: WeeklyModule[] = [
   {
     id: 'week-1',
+    studentId: 'std-1',
+    studentName: 'Lucas Mendes',
     weekNumber: 1,
     title: 'Au Café : Commander avec élégance & Politesse',
     level: 'A1',
@@ -114,6 +116,8 @@ const INITIAL_WEEKS: WeeklyModule[] = [
   },
   {
     id: 'week-2',
+    studentId: 'std-2',
+    studentName: 'Juliana Castro',
     weekNumber: 2,
     title: 'Raconter un Voyage : Passé Composé com Avoir e Être',
     level: 'A2',
@@ -183,7 +187,22 @@ class StudentPortalService {
       this.students = storedStudents ? JSON.parse(storedStudents) : INITIAL_STUDENTS;
 
       const storedWeeks = localStorage.getItem(STORAGE_KEYS.WEEKS);
-      this.weeks = storedWeeks ? JSON.parse(storedWeeks) : INITIAL_WEEKS;
+      if (storedWeeks) {
+        const parsedWeeks: WeeklyModule[] = JSON.parse(storedWeeks);
+        this.weeks = parsedWeeks.map((w, idx) => ({
+          ...w,
+          studentId: w.studentId || (idx === 0 ? 'std-1' : idx === 1 ? 'std-2' : 'ALL'),
+          studentName:
+            w.studentName ||
+            (w.studentId === 'std-1'
+              ? 'Lucas Mendes'
+              : w.studentId === 'std-2'
+              ? 'Juliana Castro'
+              : 'Todos os Alunos'),
+        }));
+      } else {
+        this.weeks = INITIAL_WEEKS;
+      }
 
       const storedSession = localStorage.getItem(STORAGE_KEYS.SESSION);
       if (storedSession) {
@@ -277,6 +296,10 @@ class StudentPortalService {
   public getWeeklyModules(levelFilter?: Level): WeeklyModule[] {
     if (!levelFilter) return this.weeks;
     return this.weeks.filter((w) => w.level === levelFilter);
+  }
+
+  public getWeeklyModulesForStudent(studentId: string): WeeklyModule[] {
+    return this.weeks.filter((w) => w.studentId === studentId || w.studentId === 'ALL');
   }
 
   public getWeeklyModuleById(id: string): WeeklyModule | undefined {

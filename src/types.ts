@@ -94,6 +94,8 @@ export interface WeeklyLessonContent {
 
 export interface WeeklyModule {
   id: string;
+  studentId: string; // ID do aluno específico (ex: 'std-1') ou 'ALL'
+  studentName: string; // Nome do aluno (ex: 'Lucas Mendes' ou 'Todos os Alunos')
   weekNumber: number;
   title: string;
   level: Level;
