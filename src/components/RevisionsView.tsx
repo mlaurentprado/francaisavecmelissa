@@ -123,9 +123,6 @@ export const RevisionsView: React.FC<RevisionsViewProps> = ({
                     <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#F4EFE6] text-[#78644E] uppercase">
                       {card.category}
                     </span>
-                    {card.phonetic && (
-                      <span className="text-xs text-[#8C7A6B] font-mono">[{card.phonetic}]</span>
-                    )}
                   </div>
                   <h4 className="font-cormorant text-2xl sm:text-3xl font-bold text-[#0F172A]">
                     {card.french}

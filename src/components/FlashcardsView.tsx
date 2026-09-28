@@ -203,11 +203,6 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
               <h2 className="font-cormorant text-4xl sm:text-5xl md:text-6xl font-bold text-[#0F172A] tracking-tight leading-tight">
                 {currentCard.french}
               </h2>
-              {currentCard.phonetic && (
-                <p className="text-sm font-mono text-[#8C7A6B]">
-                  [{currentCard.phonetic}]
-                </p>
-              )}
 
               {/* Audio and Microphone Action Controls */}
               <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3 pt-3">

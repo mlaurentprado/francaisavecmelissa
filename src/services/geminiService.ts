@@ -36,7 +36,7 @@ Sua tarefa é criar exercícios práticos, elegantes e gramaticalmente perfeitos
 REGRAS OBRIGATÓRIAS:
 1. Baseie-se ESTRITAMENTE no tema da aula, no resumo pedagógico e no vocabulário fornecidos pela professora. NÃO invente regras, vocabulários ou tópicos que não foram mencionados.
 2. Todo o francês deve ser autêntico, natural e adequado ao nível CEFR selecionado (${level}).
-3. Forneça transcrição fonética simplificada e amigável nos flashcards para alunos lusófonos.
+3. O foco dos flashcards deve ser a clareza do vocabulário, tradução precisa e exemplos práticos de uso contextualizados. NÃO inclua transcrições ou símbolos fonéticos.
 4. O quiz deve conter exatamente 4 alternativas por questão, onde apenas 1 é correta, acompanhada de explicação pedagógica clara e uma "dica da Melissa".
 5. O ditado (dictée) deve ser uma frase em francês baseada diretamente no que foi ensinado na aula.
 6. Retorne ESTRITAMENTE um objeto JSON válido, sem markdown envolvente ou formatação extra.`;
@@ -54,7 +54,6 @@ Gere entre 3 a 5 flashcards, 2 a 3 questões de quiz e 1 a 2 frases para ditado,
   "flashcards": [
     {
       "french": "expressão ou palavra em francês",
-      "phonetic": "guia fonético amigável",
       "portuguese": "tradução em português",
       "exampleFr": "frase de exemplo contextualizada em francês",
       "examplePt": "tradução do exemplo em português",
@@ -128,7 +127,7 @@ Gere entre 3 a 5 flashcards, 2 a 3 questões de quiz e 1 a 2 frases para ditado,
       level,
       category: theme,
       french: f.french || '',
-      phonetic: f.phonetic || '',
+      phonetic: '',
       portuguese: f.portuguese || '',
       exampleFr: f.exampleFr || '',
       examplePt: f.examplePt || '',
