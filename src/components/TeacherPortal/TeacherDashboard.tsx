@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { WeeklyModule, StudentProfile, Level } from '../../types';
-import { studentPortalService } from '../../services/studentPortalService';
+import { WeeklyModule, StudentProfile, Level, ClassScheduleRecord, PaymentStatus } from '../../types';
+import { studentPortalService, TeacherSettings } from '../../services/studentPortalService';
+import { getWhatsAppPaymentReminderUrl, getWhatsAppRescheduleUrl } from '../../services/whatsapp';
 import { WeekContentEditor } from './WeekContentEditor';
 import {
   GraduationCap,
@@ -17,6 +18,16 @@ import {
   X,
   User,
   UserCheck,
+  CreditCard,
+  Calendar,
+  MessageCircle,
+  AlertCircle,
+  CheckCircle2,
+  DollarSign,
+  Clock,
+  Settings,
+  Copy,
+  Check,
 } from 'lucide-react';
 
 interface TeacherDashboardProps {
@@ -26,18 +37,49 @@ interface TeacherDashboardProps {
 export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) => {
   const [weeks, setWeeks] = useState<WeeklyModule[]>(() => studentPortalService.getWeeklyModules());
   const [students, setStudents] = useState<StudentProfile[]>(() => studentPortalService.getStudents());
+  const [schedules, setSchedules] = useState<ClassScheduleRecord[]>(() => studentPortalService.getSchedules());
+  const [teacherSettings, setTeacherSettings] = useState<TeacherSettings>(() =>
+    studentPortalService.getTeacherSettings()
+  );
+
   const [editingModule, setEditingModule] = useState<WeeklyModule | undefined>(undefined);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'weeks' | 'students'>('weeks');
+  const [activeTab, setActiveTab] = useState<'weeks' | 'students' | 'financial'>('weeks');
   const [studentFilter, setStudentFilter] = useState<string>('ALL');
 
   // New Student modal state
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentEmail, setNewStudentEmail] = useState('');
+  const [newStudentPhone, setNewStudentPhone] = useState('');
   const [newStudentPin, setNewStudentPin] = useState('1234');
   const [newStudentLevel, setNewStudentLevel] = useState<Level>('A1');
+  const [newStudentPlan, setNewStudentPlan] = useState('Aulas Particulares VIP');
+  const [newStudentAmount, setNewStudentAmount] = useState(480);
+  const [newStudentDueDay, setNewStudentDueDay] = useState(10);
 
+  // Reschedule / Cancellation Modal State
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [schedStudentId, setSchedStudentId] = useState(students[0]?.id || '');
+  const [schedOriginalDate, setSchedOriginalDate] = useState('');
+  const [schedNewDate, setSchedNewDate] = useState('');
+  const [schedStatus, setSchedStatus] = useState<'rescheduled' | 'cancelled'>('rescheduled');
+  const [schedReason, setSchedReason] = useState('');
+
+  // Edit Payment Modal State
+  const [editingPaymentStudent, setEditingPaymentStudent] = useState<StudentProfile | null>(null);
+  const [editPlanName, setEditPlanName] = useState('');
+  const [editAmount, setEditAmount] = useState(480);
+  const [editDueDay, setEditDueDay] = useState(10);
+  const [editStatus, setEditStatus] = useState<PaymentStatus>('pending');
+
+  // Teacher PIX Settings Modal State
+  const [isPixSettingsOpen, setIsPixSettingsOpen] = useState(false);
+  const [settingsPixKey, setSettingsPixKey] = useState(teacherSettings.pixKey);
+  const [settingsPhone, setSettingsPhone] = useState(teacherSettings.phone);
+  const [copiedPix, setCopiedPix] = useState(false);
+
+  // --- WEEKS HANDLERS ---
   const handleSaveWeek = (moduleData: Omit<WeeklyModule, 'id' | 'createdAt'> & { id?: string }) => {
     studentPortalService.saveWeeklyModule(moduleData);
     setWeeks(studentPortalService.getWeeklyModules());
@@ -52,6 +94,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
     }
   };
 
+  // --- STUDENTS HANDLERS ---
   const handleAddStudent = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStudentName.trim()) return;
@@ -59,14 +102,22 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
     studentPortalService.addStudent({
       name: newStudentName.trim(),
       email: newStudentEmail.trim() || `${newStudentName.toLowerCase().replace(/\s+/g, '')}@aluno.com`,
+      phone: newStudentPhone.trim() || undefined,
       pin: newStudentPin.trim() || '1234',
       level: newStudentLevel,
+      payment: {
+        planName: newStudentPlan,
+        amount: Number(newStudentAmount) || 480,
+        dueDay: Number(newStudentDueDay) || 10,
+        status: 'pending',
+      },
     });
 
     setStudents(studentPortalService.getStudents());
     setIsAddStudentOpen(false);
     setNewStudentName('');
     setNewStudentEmail('');
+    setNewStudentPhone('');
     setNewStudentPin('1234');
   };
 
@@ -86,6 +137,107 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
     }
   };
 
+  // --- FINANCIAL & PAYMENTS HANDLERS ---
+  const handleTogglePaymentStatus = (studentId: string, currentStatus: PaymentStatus) => {
+    const nextStatus: PaymentStatus =
+      currentStatus === 'paid' ? 'pending' : currentStatus === 'pending' ? 'overdue' : 'paid';
+
+    studentPortalService.updateStudentPayment(studentId, { status: nextStatus });
+    setStudents(studentPortalService.getStudents());
+  };
+
+  const handleOpenEditPayment = (student: StudentProfile) => {
+    setEditingPaymentStudent(student);
+    setEditPlanName(student.payment?.planName || 'Aulas Particulares VIP');
+    setEditAmount(student.payment?.amount || 480);
+    setEditDueDay(student.payment?.dueDay || 10);
+    setEditStatus(student.payment?.status || 'pending');
+  };
+
+  const handleSavePaymentEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPaymentStudent) return;
+
+    studentPortalService.updateStudentPayment(editingPaymentStudent.id, {
+      planName: editPlanName,
+      amount: Number(editAmount),
+      dueDay: Number(editDueDay),
+      status: editStatus,
+    });
+
+    setStudents(studentPortalService.getStudents());
+    setEditingPaymentStudent(null);
+  };
+
+  // --- SCHEDULES & REMARCAÇÕES HANDLERS ---
+  const handleAddSchedule = (e: React.FormEvent) => {
+    e.preventDefault();
+    const student = students.find((s) => s.id === schedStudentId);
+    if (!student || !schedOriginalDate.trim()) return;
+
+    const newRecord = studentPortalService.addSchedule({
+      studentId: student.id,
+      studentName: student.name,
+      originalDate: schedOriginalDate.trim(),
+      newDate: schedStatus === 'rescheduled' ? schedNewDate.trim() || undefined : undefined,
+      status: schedStatus,
+      reason: schedReason.trim() || undefined,
+    });
+
+    setSchedules(studentPortalService.getSchedules());
+    setIsScheduleModalOpen(false);
+
+    // Perguntar se quer abrir o WhatsApp imediatamente
+    if (confirm(`Remarcação salva! Deseja abrir o WhatsApp para avisar ${student.name.split(' ')[0]} agora?`)) {
+      window.open(getWhatsAppRescheduleUrl(student, newRecord), '_blank');
+    }
+
+    setSchedOriginalDate('');
+    setSchedNewDate('');
+    setSchedReason('');
+  };
+
+  const handleDeleteSchedule = (id: string) => {
+    if (confirm('Deseja retirar este registro de aula cancelada/remarcada?')) {
+      studentPortalService.deleteSchedule(id);
+      setSchedules(studentPortalService.getSchedules());
+    }
+  };
+
+  // --- PIX SETTINGS HANDLERS ---
+  const handleSavePixSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    const updated: TeacherSettings = {
+      ...teacherSettings,
+      pixKey: settingsPixKey.trim() || 'melissa.prado@exemplo.com',
+      phone: settingsPhone.trim() || '5511999990000',
+    };
+    studentPortalService.saveTeacherSettings(updated);
+    setTeacherSettings(updated);
+    setIsPixSettingsOpen(false);
+  };
+
+  const handleCopyPix = () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(teacherSettings.pixKey);
+      setCopiedPix(true);
+      setTimeout(() => setCopiedPix(false), 2500);
+    }
+  };
+
+  // Cálculos Financeiros
+  const totalPaid = students
+    .filter((s) => s.payment?.status === 'paid')
+    .reduce((acc, s) => acc + (s.payment?.amount || 0), 0);
+
+  const totalPending = students
+    .filter((s) => s.payment?.status === 'pending')
+    .reduce((acc, s) => acc + (s.payment?.amount || 0), 0);
+
+  const totalOverdue = students
+    .filter((s) => s.payment?.status === 'overdue')
+    .reduce((acc, s) => acc + (s.payment?.amount || 0), 0);
+
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-fadeIn text-left">
       {/* Teacher Welcome Header */}
@@ -100,7 +252,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
               Bonjour, Melissa ! ✦
             </h2>
             <p className="text-xs sm:text-sm text-slate-300">
-              Gerencie os resumos semanais de aula, anexe PDFs e vídeos, e acompanhe o progresso dos seus alunos.
+              Gerencie os resumos semanais de aula, acompanhe pagamentos, remarcações e o progresso dos seus alunos.
             </p>
           </div>
 
@@ -115,13 +267,13 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
         </div>
       </div>
 
-      {/* Main Tabs: Semanas vs Alunos */}
-      <div className="flex items-center justify-between border-b border-[#EBE4D8] pb-4 gap-4">
-        <div className="flex items-center gap-2 bg-[#FAF7F2] p-1.5 rounded-2xl border border-[#EBE4D8] text-xs font-semibold">
+      {/* Main Tabs: Semanas vs Alunos vs Financeiro */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#EBE4D8] pb-4 gap-4">
+        <div className="flex items-center gap-2 bg-[#FAF7F2] p-1.5 rounded-2xl border border-[#EBE4D8] text-xs font-semibold overflow-x-auto no-scrollbar">
           <button
             type="button"
             onClick={() => setActiveTab('weeks')}
-            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
               activeTab === 'weeks'
                 ? 'bg-[#8B2626] text-white shadow-2xs'
                 : 'text-[#5A6578] hover:text-[#0F172A]'
@@ -134,7 +286,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
           <button
             type="button"
             onClick={() => setActiveTab('students')}
-            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 ${
+            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
               activeTab === 'students'
                 ? 'bg-[#8B2626] text-white shadow-2xs'
                 : 'text-[#5A6578] hover:text-[#0F172A]'
@@ -143,32 +295,73 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
             <Users className="w-3.5 h-3.5" />
             <span>Meus Alunos ({students.length})</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('financial')}
+            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'financial'
+                ? 'bg-[#8B2626] text-white shadow-2xs'
+                : 'text-[#5A6578] hover:text-[#0F172A]'
+            }`}
+          >
+            <CreditCard className="w-3.5 h-3.5" />
+            <span>Financeiro & Agenda</span>
+            {totalOverdue > 0 && (
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" title="Há mensalidades atrasadas"></span>
+            )}
+          </button>
         </div>
 
-        {activeTab === 'weeks' && (
-          <button
-            type="button"
-            onClick={() => {
-              setEditingModule(undefined);
-              setIsEditorOpen(true);
-            }}
-            className="py-2.5 px-4 rounded-xl bg-[#8B2626] hover:bg-[#731E1E] text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Nova Semana de Aula</span>
-          </button>
-        )}
+        {/* Tab Specific Action Buttons */}
+        <div className="flex items-center gap-2 shrink-0">
+          {activeTab === 'weeks' && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingModule(undefined);
+                setIsEditorOpen(true);
+              }}
+              className="py-2.5 px-4 rounded-xl bg-[#8B2626] hover:bg-[#731E1E] text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Nova Semana de Aula</span>
+            </button>
+          )}
 
-        {activeTab === 'students' && (
-          <button
-            type="button"
-            onClick={() => setIsAddStudentOpen(true)}
-            className="py-2.5 px-4 rounded-xl bg-[#8B2626] hover:bg-[#731E1E] text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>Cadastrar Aluno</span>
-          </button>
-        )}
+          {activeTab === 'students' && (
+            <button
+              type="button"
+              onClick={() => setIsAddStudentOpen(true)}
+              className="py-2.5 px-4 rounded-xl bg-[#8B2626] hover:bg-[#731E1E] text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>+ Cadastrar Aluno</span>
+            </button>
+          )}
+
+          {activeTab === 'financial' && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsScheduleModalOpen(true)}
+                className="py-2.5 px-4 rounded-xl bg-[#FAF7F2] hover:bg-[#F4EFE6] border border-[#DDD3C1] text-[#78644E] font-bold text-xs shadow-2xs transition-all flex items-center gap-1.5"
+              >
+                <Calendar className="w-4 h-4 text-[#8B2626]" />
+                <span>+ Remarcar Aula</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsPixSettingsOpen(true)}
+                className="p-2.5 rounded-xl border border-[#D4C8B8] hover:bg-[#FAF7F2] text-[#78644E] transition-colors"
+                title="Configurações de PIX e WhatsApp"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* TAB 1: WEEKS LIST */}
@@ -299,7 +492,6 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
       {/* TAB 2: STUDENTS LIST */}
       {activeTab === 'students' && (
         <div className="space-y-4">
-          {/* Top Bar for Students management */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FAF7F2] p-4 rounded-2xl border border-[#EBE4D8]">
             <div className="space-y-0.5">
               <h4 className="font-bold text-sm text-[#0F172A] flex items-center gap-2">
@@ -357,12 +549,12 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
 
                     <div className="pt-2 border-t border-[#F2ECE3] text-xs space-y-1 text-[#5A6578]">
                       <p><strong>PIN de Acesso:</strong> <code className="bg-[#FAF7F2] px-1.5 py-0.5 rounded text-[#0F172A] font-bold">{student.pin}</code></p>
+                      <p><strong>Plano:</strong> {student.payment?.planName || 'Particular'}</p>
                       <p><strong>Semanas Concluídas:</strong> {student.completedWeekIds.length}</p>
                       <p><strong>Sequência de Estudos:</strong> {student.streakDays} dias seguidos</p>
                     </div>
                   </div>
 
-                  {/* Actions: Ver Aulas + Retirar Aluno */}
                   <div className="pt-2 border-t border-[#F2ECE3] flex items-center gap-2">
                     <button
                       type="button"
@@ -392,7 +584,309 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
         </div>
       )}
 
-      {/* Editor Modal */}
+      {/* TAB 3: FINANCIAL & AGENDAMENTOS */}
+      {activeTab === 'financial' && (
+        <div className="space-y-8 animate-fadeIn">
+          {/* Summary Stat Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="bg-white p-5 rounded-3xl border border-[#EBE4D8] shadow-2xs space-y-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>Recebido no Mês</span>
+              </span>
+              <p className="font-cormorant text-3xl font-bold text-emerald-700">
+                R$ {totalPaid.toFixed(2).replace('.', ',')}
+              </p>
+              <p className="text-[11px] text-[#5A6578]">
+                {students.filter((s) => s.payment?.status === 'paid').length} mensalidades quitadas
+              </p>
+            </div>
+
+            <div className="bg-white p-5 rounded-3xl border border-[#EBE4D8] shadow-2xs space-y-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-amber-600" />
+                <span>A Vencer (Pendente)</span>
+              </span>
+              <p className="font-cormorant text-3xl font-bold text-amber-700">
+                R$ {totalPending.toFixed(2).replace('.', ',')}
+              </p>
+              <p className="text-[11px] text-[#5A6578]">
+                {students.filter((s) => s.payment?.status === 'pending').length} mensalidades a vencer
+              </p>
+            </div>
+
+            <div className="bg-white p-5 rounded-3xl border border-[#EBE4D8] shadow-2xs space-y-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-rose-800 flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4 text-rose-600" />
+                <span>Atrasado (Cobrança)</span>
+              </span>
+              <p className="font-cormorant text-3xl font-bold text-rose-700">
+                R$ {totalOverdue.toFixed(2).replace('.', ',')}
+              </p>
+              <p className="text-[11px] text-[#5A6578]">
+                {students.filter((s) => s.payment?.status === 'overdue').length} mensalidades pendentes
+              </p>
+            </div>
+
+            <div className="bg-[#FAF7F2] p-5 rounded-3xl border border-[#DDD3C1] shadow-2xs space-y-2 flex flex-col justify-between">
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#78644E] flex items-center gap-1.5">
+                  <CreditCard className="w-4 h-4 text-[#8B2626]" />
+                  <span>Sua Chave PIX</span>
+                </span>
+                <p className="font-mono text-xs font-bold text-[#0F172A] truncate mt-1">
+                  {teacherSettings.pixKey}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyPix}
+                  className="py-1 px-2.5 rounded-lg border border-[#D4C8B8] bg-white text-[11px] font-bold text-[#8B2626] hover:bg-[#F4EFE6] transition-colors flex items-center gap-1"
+                >
+                  <Copy className="w-3 h-3" />
+                  <span>{copiedPix ? 'Copiado!' : 'Copiar'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPixSettingsOpen(true)}
+                  className="py-1 px-2.5 rounded-lg bg-[#8B2626] text-white text-[11px] font-bold hover:bg-[#731E1E] transition-colors"
+                >
+                  Alterar Chave
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* MÓDULO 1: TABELA DE CONTROLE DE MENSALIDADES */}
+          <div className="bg-white rounded-3xl border border-[#EBE4D8] p-6 shadow-2xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#F2ECE3] pb-4">
+              <div>
+                <h3 className="font-cormorant text-2xl font-bold text-[#0F172A] flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-[#8B2626]" />
+                  <span>Controle de Pagamentos dos Alunos</span>
+                </h3>
+                <p className="text-xs text-[#5A6578]">
+                  Acompanhe vencimentos, alterne o status com 1 clique e envie lembretes gentis no WhatsApp.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {students.map((student) => {
+                const payment = student.payment || {
+                  planName: 'Aulas VIP Individuais',
+                  amount: 480,
+                  dueDay: 10,
+                  status: 'pending' as PaymentStatus,
+                };
+
+                return (
+                  <div
+                    key={student.id}
+                    className="p-4 sm:p-5 rounded-2xl border border-[#EBE4D8] bg-[#FAF7F2]/40 hover:bg-[#FAF7F2] transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4"
+                  >
+                    {/* Aluno & Plano */}
+                    <div className="flex items-center gap-3 min-w-[220px]">
+                      <div className="w-10 h-10 rounded-full bg-[#8B2626] text-white flex items-center justify-center font-cormorant text-lg font-bold shrink-0">
+                        {student.name.charAt(0)}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-sm text-[#0F172A]">{student.name}</h4>
+                        <p className="text-xs text-[#5A6578]">{payment.planName}</p>
+                      </div>
+                    </div>
+
+                    {/* Valor e Vencimento */}
+                    <div className="flex items-center gap-6 text-xs">
+                      <div>
+                        <span className="text-[#8C7A6B] block">Valor Mensal</span>
+                        <span className="font-bold text-sm text-[#0F172A]">
+                          R$ {payment.amount.toFixed(2).replace('.', ',')}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[#8C7A6B] block">Dia Vencimento</span>
+                        <span className="font-bold text-sm text-[#0F172A]">
+                          Todo dia {payment.dueDay}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Status Badge Clicável */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleTogglePaymentStatus(student.id, payment.status)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border flex items-center gap-1.5 ${
+                          payment.status === 'paid'
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                            : payment.status === 'pending'
+                            ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+                            : 'bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-100'
+                        }`}
+                        title="Clique para alternar o status do pagamento"
+                      >
+                        {payment.status === 'paid' && (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Pago ✨</span>
+                          </>
+                        )}
+                        {payment.status === 'pending' && (
+                          <>
+                            <Clock className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Pendente</span>
+                          </>
+                        )}
+                        {payment.status === 'overdue' && (
+                          <>
+                            <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                            <span>Atrasado</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditPayment(student)}
+                        className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-[#DDD3C1]"
+                        title="Editar valor ou plano"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Botão de Enviar Lembrete no WhatsApp */}
+                    <a
+                      href={getWhatsAppPaymentReminderUrl(student, payment, teacherSettings.pixKey)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 shrink-0 self-start md:self-auto"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      <span>Enviar Lembrete WhatsApp</span>
+                    </a>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* MÓDULO 2: HISTÓRICO DE AULAS CANCELADAS & REMARCADAS */}
+          <div className="bg-white rounded-3xl border border-[#EBE4D8] p-6 shadow-2xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#F2ECE3] pb-4">
+              <div>
+                <h3 className="font-cormorant text-2xl font-bold text-[#0F172A] flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-[#8B2626]" />
+                  <span>Agenda de Reposições e Remarcações</span>
+                </h3>
+                <p className="text-xs text-[#5A6578]">
+                  Registro das aulas que precisaram de alteração de horário ou cancelamento com reposição.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsScheduleModalOpen(true)}
+                className="py-2.5 px-4 rounded-xl bg-[#8B2626] hover:bg-[#731E1E] text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5 self-start sm:self-auto"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ Registrar Ocorrência</span>
+              </button>
+            </div>
+
+            {schedules.length === 0 ? (
+              <div className="text-center py-8 text-xs text-[#5A6578] space-y-2">
+                <p>Nenhuma aula remarcada ou cancelada registrada no momento. Todas em dia! ✨</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {schedules.map((record) => {
+                  const student = students.find((s) => s.id === record.studentId);
+
+                  return (
+                    <div
+                      key={record.id}
+                      className="p-4 sm:p-5 rounded-2xl border border-[#EBE4D8] bg-[#FAF7F2]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`p-2.5 rounded-xl shrink-0 mt-0.5 ${
+                            record.status === 'rescheduled'
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-rose-100 text-rose-800'
+                          }`}
+                        >
+                          <Calendar className="w-4 h-4" />
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm text-[#0F172A]">{record.studentName}</span>
+                            <span
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                                record.status === 'rescheduled'
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                  : 'bg-rose-100 text-rose-800 border border-rose-300'
+                              }`}
+                            >
+                              {record.status === 'rescheduled' ? 'Remarcada' : 'Cancelada'}
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-[#0F172A]">
+                            {record.status === 'rescheduled' ? (
+                              <>
+                                De <span className="line-through text-slate-500">{record.originalDate}</span> para{' '}
+                                <strong className="text-[#8B2626] font-bold">{record.newDate}</strong>
+                              </>
+                            ) : (
+                              <>Aula do dia <strong>{record.originalDate}</strong> cancelada.</>
+                            )}
+                          </p>
+
+                          {record.reason && (
+                            <p className="text-xs text-[#5A6578]">
+                              <strong>Motivo:</strong> {record.reason}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Ações: Avisar Aluno + Excluir */}
+                      <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+                        {student && (
+                          <a
+                            href={getWhatsAppRescheduleUrl(student, record)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="py-2 px-3.5 rounded-xl border border-emerald-600 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs transition-colors flex items-center gap-1.5"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Avisar no WhatsApp</span>
+                          </a>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSchedule(record.id)}
+                          className="p-2 rounded-xl border border-rose-200 hover:bg-rose-50 text-rose-600 transition-colors"
+                          title="Excluir ocorrência"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Editor Modal de Aulas Semanais */}
       {isEditorOpen && (
         <WeekContentEditor
           initialModule={editingModule}
@@ -404,7 +898,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
         />
       )}
 
-      {/* Add Student Modal */}
+      {/* Modal Cadastrar Aluno */}
       {isAddStudentOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
           <div className="bg-white rounded-3xl border border-[#EBE4D8] p-6 max-w-md w-full shadow-2xl space-y-4">
@@ -436,20 +930,76 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
                 />
               </div>
 
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                    WhatsApp (DDD + Número) :
+                  </label>
+                  <input
+                    type="tel"
+                    value={newStudentPhone}
+                    onChange={(e) => setNewStudentPhone(e.target.value)}
+                    placeholder="11999998888"
+                    className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs bg-[#FAF7F2]/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                    Nível do Aluno :
+                  </label>
+                  <select
+                    value={newStudentLevel}
+                    onChange={(e) => setNewStudentLevel(e.target.value as Level)}
+                    className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs font-bold bg-[#FAF7F2]/50"
+                  >
+                    <option value="A1">A1 — Iniciante</option>
+                    <option value="A2">A2 — Básico</option>
+                    <option value="B1">B1/B2 — Intermediário</option>
+                    <option value="C1">C1/C2 — Avançado</option>
+                  </select>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-[#0F172A] mb-1">
-                  Nível do Aluno :
+                  Plano / Modalidade :
                 </label>
-                <select
-                  value={newStudentLevel}
-                  onChange={(e) => setNewStudentLevel(e.target.value as Level)}
+                <input
+                  type="text"
+                  value={newStudentPlan}
+                  onChange={(e) => setNewStudentPlan(e.target.value)}
+                  placeholder="Ex: Aulas Particulares VIP"
                   className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs font-bold bg-[#FAF7F2]/50"
-                >
-                  <option value="A1">A1 — Iniciante</option>
-                  <option value="A2">A2 — Básico</option>
-                  <option value="B1">B1/B2 — Intermediário</option>
-                  <option value="C1">C1/C2 — Avançado</option>
-                </select>
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                    Valor Mensalidade (R$) :
+                  </label>
+                  <input
+                    type="number"
+                    value={newStudentAmount}
+                    onChange={(e) => setNewStudentAmount(Number(e.target.value))}
+                    className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs font-bold bg-[#FAF7F2]/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                    Dia Vencimento :
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={31}
+                    value={newStudentDueDay}
+                    onChange={(e) => setNewStudentDueDay(Number(e.target.value))}
+                    className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs font-bold bg-[#FAF7F2]/50"
+                  />
+                </div>
               </div>
 
               <div>
@@ -479,6 +1029,304 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
                   className="py-2.5 px-5 rounded-xl bg-[#8B2626] text-white font-bold text-xs shadow-xs"
                 >
                   Salvar Aluno
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Registrar Remarcação ou Cancelamento */}
+      {isScheduleModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl border border-[#EBE4D8] p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#EBE4D8] pb-3">
+              <h4 className="font-cormorant text-2xl font-bold text-[#0F172A] flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-[#8B2626]" />
+                <span>Registrar Aula</span>
+              </h4>
+              <button
+                type="button"
+                onClick={() => setIsScheduleModalOpen(false)}
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddSchedule} className="space-y-3.5 text-left">
+              <div>
+                <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                  Selecione o Aluno :
+                </label>
+                <select
+                  value={schedStudentId}
+                  onChange={(e) => setSchedStudentId(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs font-bold bg-[#FAF7F2]/50"
+                  required
+                >
+                  {students.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.level})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                  Tipo de Ocorrência :
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSchedStatus('rescheduled')}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-colors ${
+                      schedStatus === 'rescheduled'
+                        ? 'bg-[#8B2626] text-white border-[#8B2626]'
+                        : 'bg-white text-[#5A6578] border-[#DDD3C1]'
+                    }`}
+                  >
+                    Aula Remarcada
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSchedStatus('cancelled')}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold border transition-colors ${
+                      schedStatus === 'cancelled'
+                        ? 'bg-rose-700 text-white border-rose-700'
+                        : 'bg-white text-[#5A6578] border-[#DDD3C1]'
+                    }`}
+                  >
+                    Aula Cancelada
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                  Data e Horário Original da Aula :
+                </label>
+                <input
+                  type="text"
+                  value={schedOriginalDate}
+                  onChange={(e) => setSchedOriginalDate(e.target.value)}
+                  placeholder="Ex: Terça 24/09 às 15:00"
+                  className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs bg-[#FAF7F2]/50"
+                  required
+                />
+              </div>
+
+              {schedStatus === 'rescheduled' && (
+                <div>
+                  <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                    Nova Data e Horário Reagendado :
+                  </label>
+                  <input
+                    type="text"
+                    value={schedNewDate}
+                    onChange={(e) => setSchedNewDate(e.target.value)}
+                    placeholder="Ex: Quinta 26/09 às 16:30"
+                    className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs font-bold bg-white"
+                    required
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                  Motivo ou Observação Pedagógica (Opcional) :
+                </label>
+                <input
+                  type="text"
+                  value={schedReason}
+                  onChange={(e) => setSchedReason(e.target.value)}
+                  placeholder="Ex: Viagem de trabalho / Reposição combinada"
+                  className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs bg-[#FAF7F2]/50"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#EBE4D8]">
+                <button
+                  type="button"
+                  onClick={() => setIsScheduleModalOpen(false)}
+                  className="py-2.5 px-4 rounded-xl border border-[#D4C8B8] text-xs font-semibold text-[#5A6578]"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="py-2.5 px-5 rounded-xl bg-[#8B2626] text-white font-bold text-xs shadow-xs"
+                >
+                  Salvar e Notificar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar Pagamento do Aluno */}
+      {editingPaymentStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl border border-[#EBE4D8] p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#EBE4D8] pb-3">
+              <div>
+                <h4 className="font-cormorant text-2xl font-bold text-[#0F172A]">
+                  Editar Mensalidade
+                </h4>
+                <p className="text-xs text-[#5A6578]">Aluno: {editingPaymentStudent.name}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingPaymentStudent(null)}
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePaymentEdit} className="space-y-3.5 text-left">
+              <div>
+                <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                  Nome do Plano / Curso :
+                </label>
+                <input
+                  type="text"
+                  value={editPlanName}
+                  onChange={(e) => setEditPlanName(e.target.value)}
+                  className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs font-bold bg-[#FAF7F2]/50"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                    Valor Mensal (R$) :
+                  </label>
+                  <input
+                    type="number"
+                    value={editAmount}
+                    onChange={(e) => setEditAmount(Number(e.target.value))}
+                    className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs font-bold bg-[#FAF7F2]/50"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                    Dia Vencimento :
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={31}
+                    value={editDueDay}
+                    onChange={(e) => setEditDueDay(Number(e.target.value))}
+                    className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs font-bold bg-[#FAF7F2]/50"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                  Status Atual do Pagamento :
+                </label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value as PaymentStatus)}
+                  className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs font-bold bg-white"
+                >
+                  <option value="paid">Pago ✨ (Mensalidade em dia)</option>
+                  <option value="pending">Pendente (Aguardando vencimento)</option>
+                  <option value="overdue">Atrasado (Cobrança necessária)</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#EBE4D8]">
+                <button
+                  type="button"
+                  onClick={() => setEditingPaymentStudent(null)}
+                  className="py-2.5 px-4 rounded-xl border border-[#D4C8B8] text-xs font-semibold text-[#5A6578]"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="py-2.5 px-5 rounded-xl bg-[#8B2626] text-white font-bold text-xs shadow-xs"
+                >
+                  Salvar Alterações
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Configurar Chave PIX e Telefone da Melissa */}
+      {isPixSettingsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl border border-[#EBE4D8] p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#EBE4D8] pb-3">
+              <h4 className="font-cormorant text-2xl font-bold text-[#0F172A] flex items-center gap-2">
+                <Settings className="w-5 h-5 text-[#8B2626]" />
+                <span>Dados de Recebimento PIX</span>
+              </h4>
+              <button
+                type="button"
+                onClick={() => setIsPixSettingsOpen(false)}
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePixSettings} className="space-y-3.5 text-left">
+              <div>
+                <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                  Sua Chave PIX (E-mail, CPF ou Telefone) :
+                </label>
+                <input
+                  type="text"
+                  value={settingsPixKey}
+                  onChange={(e) => setSettingsPixKey(e.target.value)}
+                  placeholder="Ex: melissa.prado@gmail.com"
+                  className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs font-bold bg-[#FAF7F2]/50 font-mono"
+                  required
+                />
+                <p className="text-[11px] text-[#5A6578] mt-1">
+                  Esta chave é exibida no portal de todos os alunos e nos lembretes de WhatsApp.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                  Seu WhatsApp para Receber Comprovantes :
+                </label>
+                <input
+                  type="tel"
+                  value={settingsPhone}
+                  onChange={(e) => setSettingsPhone(e.target.value)}
+                  placeholder="5511999990000"
+                  className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs bg-[#FAF7F2]/50"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#EBE4D8]">
+                <button
+                  type="button"
+                  onClick={() => setIsPixSettingsOpen(false)}
+                  className="py-2.5 px-4 rounded-xl border border-[#D4C8B8] text-xs font-semibold text-[#5A6578]"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="py-2.5 px-5 rounded-xl bg-[#8B2626] text-white font-bold text-xs shadow-xs"
+                >
+                  Salvar Chave
                 </button>
               </div>
             </form>

@@ -71,12 +71,33 @@ export interface StudentProgress {
   totalPoints: number;
 }
 
-// --- PORTAL DO ALUNO & PROFESSORA ---
+export type PaymentStatus = 'paid' | 'pending' | 'overdue';
+
+export interface StudentPaymentInfo {
+  planName: string;
+  amount: number;
+  dueDay: number;
+  status: PaymentStatus;
+  lastPaymentDate?: string;
+  pixKey?: string;
+}
+
+export interface ClassScheduleRecord {
+  id: string;
+  studentId: string;
+  studentName: string;
+  originalDate: string;
+  newDate?: string;
+  status: 'rescheduled' | 'cancelled';
+  reason?: string;
+  createdAt: string;
+}
 
 export interface StudentProfile {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   pin: string; // 4 dígitos
   level: Level;
   avatarUrl?: string;
@@ -84,6 +105,7 @@ export interface StudentProfile {
   streakDays: number;
   completedWeekIds: string[];
   registeredAt: string;
+  payment?: StudentPaymentInfo;
 }
 
 export interface WeeklyLessonContent {

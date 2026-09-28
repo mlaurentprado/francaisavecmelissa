@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { StudentProfile, WeeklyModule, Level } from '../../types';
 import { studentPortalService } from '../../services/studentPortalService';
+import { getWhatsAppReceiptUrl } from '../../services/whatsapp';
 import { WeeklyLessonRunner } from './WeeklyLessonRunner';
 import {
   Sparkles,
@@ -13,6 +14,11 @@ import {
   LogOut,
   ChevronDown,
   ChevronUp,
+  CreditCard,
+  Copy,
+  Calendar,
+  AlertCircle,
+  MessageCircle,
 } from 'lucide-react';
 
 interface StudentDashboardProps {
@@ -28,6 +34,19 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   const [weeks, setWeeks] = useState<WeeklyModule[]>(() =>
     studentPortalService.getWeeklyModulesForStudent(student.id)
   );
+  const [copiedPix, setCopiedPix] = useState(false);
+  const schedules = studentPortalService.getSchedulesForStudent(student.id);
+  const teacherSettings = studentPortalService.getTeacherSettings();
+
+  const handleCopyPix = () => {
+    const key = student.payment?.pixKey || teacherSettings.pixKey;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(key);
+      setCopiedPix(true);
+      setTimeout(() => setCopiedPix(false), 2500);
+    }
+  };
+
   const [selectedWeekForLesson, setSelectedWeekForLesson] = useState<WeeklyModule | null>(null);
   const [expandedWeekId, setExpandedWeekId] = useState<string | null>(weeks[0]?.id || null);
 
@@ -147,6 +166,136 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Avisos de Aulas (Remarcadas ou Canceladas) */}
+      {schedules.length > 0 && (
+        <div className="space-y-3">
+          {schedules.map((item) => (
+            <div
+              key={item.id}
+              className={`p-4 sm:p-5 rounded-3xl border flex items-start gap-3.5 text-left shadow-2xs ${
+                item.status === 'rescheduled'
+                  ? 'bg-amber-50/80 border-amber-200 text-amber-950'
+                  : 'bg-rose-50/80 border-rose-200 text-rose-950'
+              }`}
+            >
+              <div
+                className={`p-2.5 rounded-2xl shrink-0 mt-0.5 ${
+                  item.status === 'rescheduled'
+                    ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                    : 'bg-rose-100 text-rose-800 border border-rose-300'
+                }`}
+              >
+                <Calendar className="w-5 h-5" />
+              </div>
+              <div className="space-y-1 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-xs uppercase tracking-wider">
+                    {item.status === 'rescheduled' ? 'Aula Remarcada' : 'Aula Cancelada'}
+                  </span>
+                  <span className="text-[11px] opacity-75 font-medium">• Informado pela Melissa</span>
+                </div>
+                <p className="text-xs sm:text-sm font-semibold leading-relaxed">
+                  {item.status === 'rescheduled' ? (
+                    <>
+                      A aula agendada para <span className="line-through opacity-75 font-normal">{item.originalDate}</span> foi reagendada para{' '}
+                      <span className="text-[#8B2626] font-bold underline">{item.newDate}</span>.
+                    </>
+                  ) : (
+                    <>A aula prevista para <strong>{item.originalDate}</strong> foi cancelada.</>
+                  )}
+                </p>
+                {item.reason && (
+                  <p className="text-xs opacity-85 pt-0.5">
+                    <strong>Motivo / Observação:</strong> {item.reason}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Lembrete de Mensalidade & Pagamento */}
+      {student.payment && (
+        <div className="bg-white rounded-3xl border border-[#EBE4D8] p-5 sm:p-6 shadow-2xs space-y-4 text-left">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#F2ECE3] pb-3.5">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-[#FAF7F2] text-[#8B2626] flex items-center justify-center border border-[#DDD3C1] shrink-0">
+                <CreditCard className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-bold text-sm sm:text-base text-[#0F172A]">
+                    {student.payment.planName || 'Mensalidade de Francês'}
+                  </h4>
+                  <span className="text-xs font-bold text-[#8B2626] bg-[#FAF7F2] px-2.5 py-0.5 rounded-full border border-[#DDD3C1]">
+                    R$ {student.payment.amount.toFixed(2).replace('.', ',')}
+                  </span>
+                </div>
+                <p className="text-xs text-[#5A6578]">
+                  Vencimento: <strong>Todo dia {student.payment.dueDay}</strong> do mês
+                </p>
+              </div>
+            </div>
+
+            {/* Status Badge */}
+            <div className="self-start sm:self-auto">
+              {student.payment.status === 'paid' && (
+                <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 flex items-center gap-1.5 shadow-2xs">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>Mensalidade em dia ✨</span>
+                </span>
+              )}
+              {student.payment.status === 'pending' && (
+                <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300 flex items-center gap-1.5 shadow-2xs">
+                  <AlertCircle className="w-4 h-4 text-amber-600" />
+                  <span>Próximo do vencimento</span>
+                </span>
+              )}
+              {student.payment.status === 'overdue' && (
+                <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-rose-50 text-rose-800 border border-rose-300 flex items-center gap-1.5 shadow-2xs">
+                  <AlertCircle className="w-4 h-4 text-rose-600" />
+                  <span>Pagamento pendente</span>
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Dados do PIX e Enviar Comprovante */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+            <div className="space-y-1">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#78644E]">
+                Chave PIX da Professora Melissa:
+              </span>
+              <div className="flex items-center gap-2">
+                <code className="bg-[#FAF7F2] border border-[#DDD3C1] px-3.5 py-1.5 rounded-xl font-mono text-xs text-[#0F172A] font-bold">
+                  {student.payment.pixKey || teacherSettings.pixKey}
+                </code>
+                <button
+                  type="button"
+                  onClick={handleCopyPix}
+                  className="py-1.5 px-3 rounded-xl border border-[#D4C8B8] hover:bg-[#FAF7F2] text-xs font-bold text-[#8B2626] transition-colors flex items-center gap-1 shadow-2xs"
+                  title="Copiar Chave PIX"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>{copiedPix ? 'Copiado!' : 'Copiar'}</span>
+                </button>
+              </div>
+            </div>
+
+            <a
+              href={getWhatsAppReceiptUrl(student, student.payment, teacherSettings.phone)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="py-3 px-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 self-start sm:self-auto shrink-0"
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span>Enviar Comprovante (WhatsApp)</span>
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Weekly Content Timeline */}
       <div className="space-y-4">

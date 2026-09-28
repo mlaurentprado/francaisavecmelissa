@@ -1,45 +1,111 @@
-import { StudentProfile, WeeklyModule, AuthSession, Level } from '../types';
+import {
+  StudentProfile,
+  WeeklyModule,
+  AuthSession,
+  Level,
+  StudentPaymentInfo,
+  ClassScheduleRecord,
+} from '../types';
+
+export interface TeacherSettings {
+  pixKey: string;
+  pixType: 'email' | 'cpf' | 'telefone' | 'aleatoria';
+  phone: string;
+}
 
 const STORAGE_KEYS = {
-  STUDENTS: 'fam_portal_students_v2',
-  WEEKS: 'fam_portal_weeks_v2',
-  SESSION: 'fam_portal_session_v2',
+  STUDENTS: 'fam_portal_students_v3',
+  WEEKS: 'fam_portal_weeks_v3',
+  SESSION: 'fam_portal_session_v3',
+  SCHEDULES: 'fam_portal_schedules_v1',
+  SETTINGS: 'fam_portal_settings_v1',
 };
 
-// Initial Mock Students
+const DEFAULT_SETTINGS: TeacherSettings = {
+  pixKey: 'melissa.prado@exemplo.com',
+  pixType: 'email',
+  phone: '5511999990000',
+};
+
+// Initial Mock Students with Payment & Contact data
 const INITIAL_STUDENTS: StudentProfile[] = [
   {
     id: 'std-1',
     name: 'Lucas Mendes',
     email: 'lucas@exemplo.com',
+    phone: '5511999991111',
     pin: '1234',
     level: 'A1',
     totalPoints: 240,
     streakDays: 4,
     completedWeekIds: ['week-1'],
     registeredAt: '2026-08-15',
+    payment: {
+      planName: 'Aulas VIP Individuais (1x/sem)',
+      amount: 480,
+      dueDay: 10,
+      status: 'paid',
+      lastPaymentDate: '2026-09-10',
+    },
   },
   {
     id: 'std-2',
     name: 'Juliana Castro',
     email: 'juliana@exemplo.com',
+    phone: '5511999992222',
     pin: '1234',
     level: 'A2',
     totalPoints: 580,
     streakDays: 9,
     completedWeekIds: ['week-1', 'week-2'],
     registeredAt: '2026-07-10',
+    payment: {
+      planName: 'Conversação Particular (2x/sem)',
+      amount: 650,
+      dueDay: 28,
+      status: 'pending',
+    },
   },
   {
     id: 'std-3',
     name: 'Camila Ribeiro',
     email: 'camila@exemplo.com',
+    phone: '5511999993333',
     pin: '1234',
     level: 'B1',
     totalPoints: 890,
     streakDays: 14,
     completedWeekIds: ['week-1'],
     registeredAt: '2026-06-02',
+    payment: {
+      planName: 'Francês Profissional B1',
+      amount: 520,
+      dueDay: 5,
+      status: 'overdue',
+    },
+  },
+];
+
+// Initial Schedules records (Cancelled / Rescheduled)
+const INITIAL_SCHEDULES: ClassScheduleRecord[] = [
+  {
+    id: 'sched-1',
+    studentId: 'std-2',
+    studentName: 'Juliana Castro',
+    originalDate: '24/09 (Terça às 15h)',
+    newDate: '26/09 (Quinta às 16h30)',
+    status: 'rescheduled',
+    reason: 'Viagem a trabalho da aluna',
+    createdAt: '2026-09-22',
+  },
+  {
+    id: 'sched-2',
+    studentId: 'std-1',
+    studentName: 'Lucas Mendes',
+    originalDate: '21/09 (Sexta às 10h)',
+    status: 'cancelled',
+    reason: 'Reposição combinada para início de outubro',
+    createdAt: '2026-09-20',
   },
 ];
 
@@ -173,6 +239,8 @@ const INITIAL_WEEKS: WeeklyModule[] = [
 class StudentPortalService {
   private students: StudentProfile[] = [];
   private weeks: WeeklyModule[] = [];
+  private schedules: ClassScheduleRecord[] = [];
+  private settings: TeacherSettings = DEFAULT_SETTINGS;
   private currentSession: AuthSession = { currentUser: null, isTeacher: false };
 
   constructor() {
@@ -184,7 +252,21 @@ class StudentPortalService {
 
     try {
       const storedStudents = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-      this.students = storedStudents ? JSON.parse(storedStudents) : INITIAL_STUDENTS;
+      if (storedStudents) {
+        const parsed: StudentProfile[] = JSON.parse(storedStudents);
+        this.students = parsed.map((s, idx) => ({
+          ...s,
+          phone: s.phone || (idx === 0 ? '5511999991111' : idx === 1 ? '5511999992222' : '5511999993333'),
+          payment: s.payment || {
+            planName: 'Aulas VIP Individuais',
+            amount: 480,
+            dueDay: 10,
+            status: idx === 0 ? 'paid' : idx === 1 ? 'pending' : 'overdue',
+          },
+        }));
+      } else {
+        this.students = INITIAL_STUDENTS;
+      }
 
       const storedWeeks = localStorage.getItem(STORAGE_KEYS.WEEKS);
       if (storedWeeks) {
@@ -204,6 +286,12 @@ class StudentPortalService {
         this.weeks = INITIAL_WEEKS;
       }
 
+      const storedSchedules = localStorage.getItem(STORAGE_KEYS.SCHEDULES);
+      this.schedules = storedSchedules ? JSON.parse(storedSchedules) : INITIAL_SCHEDULES;
+
+      const storedSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+      this.settings = storedSettings ? JSON.parse(storedSettings) : DEFAULT_SETTINGS;
+
       const storedSession = localStorage.getItem(STORAGE_KEYS.SESSION);
       if (storedSession) {
         this.currentSession = JSON.parse(storedSession);
@@ -212,6 +300,8 @@ class StudentPortalService {
       console.error('Error loading portal storage', e);
       this.students = INITIAL_STUDENTS;
       this.weeks = INITIAL_WEEKS;
+      this.schedules = INITIAL_SCHEDULES;
+      this.settings = DEFAULT_SETTINGS;
     }
   }
 
@@ -221,6 +311,14 @@ class StudentPortalService {
 
   private saveWeeks() {
     localStorage.setItem(STORAGE_KEYS.WEEKS, JSON.stringify(this.weeks));
+  }
+
+  private saveSchedules() {
+    localStorage.setItem(STORAGE_KEYS.SCHEDULES, JSON.stringify(this.schedules));
+  }
+
+  private saveSettings() {
+    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(this.settings));
   }
 
   private saveSession() {
@@ -268,7 +366,9 @@ class StudentPortalService {
     return this.students;
   }
 
-  public addStudent(student: Omit<StudentProfile, 'id' | 'totalPoints' | 'streakDays' | 'completedWeekIds' | 'registeredAt'>): StudentProfile {
+  public addStudent(
+    student: Omit<StudentProfile, 'id' | 'totalPoints' | 'streakDays' | 'completedWeekIds' | 'registeredAt'>
+  ): StudentProfile {
     const newStudent: StudentProfile = {
       ...student,
       id: `std-${Date.now()}`,
@@ -276,6 +376,12 @@ class StudentPortalService {
       streakDays: 1,
       completedWeekIds: [],
       registeredAt: new Date().toISOString().split('T')[0],
+      payment: student.payment || {
+        planName: 'Aulas Particulares VIP',
+        amount: 480,
+        dueDay: 10,
+        status: 'pending',
+      },
     };
     this.students.push(newStudent);
     this.saveStudents();
@@ -301,6 +407,64 @@ class StudentPortalService {
     return true;
   }
 
+  // --- PAYMENTS MANAGEMENT ---
+
+  public updateStudentPayment(studentId: string, paymentUpdates: Partial<StudentPaymentInfo>) {
+    const student = this.students.find((s) => s.id === studentId);
+    if (!student) return;
+
+    const currentPayment: StudentPaymentInfo = student.payment || {
+      planName: 'Aulas Particulares VIP',
+      amount: 480,
+      dueDay: 10,
+      status: 'pending',
+    };
+
+    const updatedPayment: StudentPaymentInfo = {
+      ...currentPayment,
+      ...paymentUpdates,
+    };
+
+    this.updateStudent(studentId, { payment: updatedPayment });
+  }
+
+  // --- SCHEDULES & RESCHEDULING ---
+
+  public getSchedules(): ClassScheduleRecord[] {
+    return this.schedules;
+  }
+
+  public getSchedulesForStudent(studentId: string): ClassScheduleRecord[] {
+    return this.schedules.filter((s) => s.studentId === studentId);
+  }
+
+  public addSchedule(record: Omit<ClassScheduleRecord, 'id' | 'createdAt'>): ClassScheduleRecord {
+    const newRecord: ClassScheduleRecord = {
+      ...record,
+      id: `sched-${Date.now()}`,
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    this.schedules.unshift(newRecord);
+    this.saveSchedules();
+    return newRecord;
+  }
+
+  public deleteSchedule(id: string) {
+    this.schedules = this.schedules.filter((s) => s.id !== id);
+    this.saveSchedules();
+  }
+
+  // --- TEACHER SETTINGS ---
+
+  public getTeacherSettings(): TeacherSettings {
+    return this.settings;
+  }
+
+  public saveTeacherSettings(settings: TeacherSettings) {
+    this.settings = settings;
+    this.saveSettings();
+  }
+
   // --- WEEKS MANAGEMENT (TEACHER & STUDENT) ---
 
   public getWeeklyModules(levelFilter?: Level): WeeklyModule[] {
@@ -318,20 +482,18 @@ class StudentPortalService {
 
   public saveWeeklyModule(moduleData: Omit<WeeklyModule, 'id' | 'createdAt'> & { id?: string }): WeeklyModule {
     if (moduleData.id) {
-      // Update existing
       this.weeks = this.weeks.map((w) =>
         w.id === moduleData.id ? ({ ...w, ...moduleData } as WeeklyModule) : w
       );
       this.saveWeeks();
       return this.weeks.find((w) => w.id === moduleData.id)!;
     } else {
-      // Create new
       const newModule: WeeklyModule = {
         ...moduleData,
         id: `week-${Date.now()}`,
         createdAt: new Date().toISOString().split('T')[0],
       };
-      this.weeks.unshift(newModule); // newest first
+      this.weeks.unshift(newModule);
       this.saveWeeks();
       return newModule;
     }
