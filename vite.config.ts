@@ -8,4 +8,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    // Bind all interfaces and accept requests coming through the preview proxy host.
+    host: true,
+    allowedHosts: true,
+  },
 })
