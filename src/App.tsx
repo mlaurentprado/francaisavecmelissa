@@ -21,12 +21,30 @@ export function App() {
     return (saved as Level) || 'A1';
   });
 
-  const [activeTab, setActiveTab] = useState<TabType>('flashcards');
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    if (typeof window !== 'undefined' && (window.location.hash.includes('sync=') || window.location.hash.includes('synced=1'))) {
+      return 'portal';
+    }
+    return 'flashcards';
+  });
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [syncSuccessMsg, setSyncSuccessMsg] = useState<string | null>(null);
 
   // Portal session
   const [session, setSession] = useState<AuthSession>(() => studentPortalService.getCurrentSession());
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash.includes('synced=1')) {
+      setActiveTab('portal');
+      setSession(studentPortalService.getCurrentSession());
+      setSyncSuccessMsg('🎉 Sincronização concluída com sucesso! Seus alunos foram importados para este dispositivo.');
+      setTimeout(() => setSyncSuccessMsg(null), 7000);
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    }
+  }, []);
 
   const [knownCards, setKnownCards] = useState<string[]>(() => {
     const saved = localStorage.getItem('fam_known_cards_v2');
