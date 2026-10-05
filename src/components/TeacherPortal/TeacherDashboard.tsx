@@ -170,16 +170,6 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
     setStudents(studentPortalService.getStudents());
   };
 
-  const handleIncrementClass = (studentId: string) => {
-    studentPortalService.incrementStudentClass(studentId);
-    setStudents(studentPortalService.getStudents());
-  };
-
-  const handleDecrementClass = (studentId: string) => {
-    studentPortalService.decrementStudentClass(studentId);
-    setStudents(studentPortalService.getStudents());
-  };
-
   const handleRenewCycle = (studentId: string) => {
     studentPortalService.renewStudentCycle(studentId);
     setStudents(studentPortalService.getStudents());
@@ -1560,6 +1550,371 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* QUICK EDIT MODAL (VALOR, DATA OU AULAS - SEM FLECHAS) */}
+      {quickEditStudent && quickEditType && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl border border-[#EBE4D8] p-6 max-w-md w-full shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#F2ECE3] pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[#FAF7F2] text-[#8B2626] flex items-center justify-center border border-[#DDD3C1]">
+                  {quickEditType === 'amount' && <DollarSign className="w-4 h-4" />}
+                  {quickEditType === 'date' && <Calendar className="w-4 h-4" />}
+                  {quickEditType === 'classes' && <GraduationCap className="w-4 h-4" />}
+                </div>
+                <div>
+                  <h3 className="font-cormorant text-xl font-bold text-[#0F172A]">
+                    {quickEditType === 'amount' && 'Editar Valor do Pacote'}
+                    {quickEditType === 'date' && 'Editar Data do Pagamento'}
+                    {quickEditType === 'classes' && 'Aulas Ministradas no Ciclo'}
+                  </h3>
+                  <p className="text-xs text-[#5A6578]">Aluno(a): <strong>{quickEditStudent.name}</strong></p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setQuickEditStudent(null);
+                  setQuickEditType(null);
+                }}
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveQuickEdit} className="space-y-4 text-left">
+              {/* EDIT AMOUNT */}
+              {quickEditType === 'amount' && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-[#0F172A] mb-1.5">
+                      Valor do Pacote (R$) :
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#8C7A6B]">
+                        R$
+                      </span>
+                      <input
+                        type="number"
+                        step="10"
+                        value={quickEditAmount}
+                        onChange={(e) => setQuickEditAmount(Number(e.target.value))}
+                        className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-[#D4C8B8] outline-none text-sm font-bold text-[#0F172A] bg-[#FAF7F2]/50 focus:border-[#8B2626]"
+                        required
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+
+                  {/* Botões de Valores Rápidos (1 clique) */}
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-semibold text-[#8C7A6B] block">
+                      Valores Frequentes:
+                    </span>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[380, 400, 450, 480, 520, 600].map((val) => (
+                        <button
+                          key={val}
+                          type="button"
+                          onClick={() => setQuickEditAmount(val)}
+                          className={`py-1.5 px-2 rounded-xl text-xs font-bold border transition-all ${
+                            quickEditAmount === val
+                              ? 'bg-[#8B2626] text-white border-[#8B2626] shadow-2xs'
+                              : 'bg-white hover:bg-[#FAF7F2] text-[#0F172A] border-[#D4C8B8]'
+                          }`}
+                        >
+                          R$ {val}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* EDIT DATE */}
+              {quickEditType === 'date' && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-[#0F172A] mb-1.5">
+                      Data do Pagamento ou Vencimento :
+                    </label>
+                    <input
+                      type="date"
+                      value={quickEditDate}
+                      onChange={(e) => setQuickEditDate(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs font-bold bg-[#FAF7F2]/50 focus:border-[#8B2626]"
+                      required
+                      autoFocus
+                    />
+                  </div>
+
+                  {/* Atalhos Rápidos de Data */}
+                  <div className="space-y-1.5">
+                    <span className="text-[11px] font-semibold text-[#8C7A6B] block">
+                      Atalhos Rápidos:
+                    </span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setQuickEditDate(new Date().toISOString().split('T')[0])}
+                        className="py-1.5 px-2.5 rounded-xl text-xs font-bold border border-[#D4C8B8] bg-white hover:bg-[#FAF7F2] text-[#0F172A]"
+                      >
+                        Hoje ({formatDisplayDate(new Date().toISOString().split('T')[0])})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const d = new Date();
+                          d.setDate(d.getDate() + 7);
+                          setQuickEditDate(d.toISOString().split('T')[0]);
+                        }}
+                        className="py-1.5 px-2.5 rounded-xl text-xs font-bold border border-[#D4C8B8] bg-white hover:bg-[#FAF7F2] text-[#0F172A]"
+                      >
+                        Em 7 dias
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const d = new Date();
+                          d.setDate(d.getDate() + 15);
+                          setQuickEditDate(d.toISOString().split('T')[0]);
+                        }}
+                        className="py-1.5 px-2.5 rounded-xl text-xs font-bold border border-[#D4C8B8] bg-white hover:bg-[#FAF7F2] text-[#0F172A]"
+                      >
+                        Em 15 dias
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const d = new Date();
+                          d.setMonth(d.getMonth() + 1);
+                          setQuickEditDate(d.toISOString().split('T')[0]);
+                        }}
+                        className="py-1.5 px-2.5 rounded-xl text-xs font-bold border border-[#D4C8B8] bg-white hover:bg-[#FAF7F2] text-[#0F172A]"
+                      >
+                        Em 30 dias
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* EDIT CLASSES IN CYCLE (SEM FLECHAS) */}
+              {quickEditType === 'classes' && (() => {
+                const totalCycle = quickEditStudent.payment?.billingCycleClasses || 4;
+                return (
+                  <div className="space-y-3">
+                    <p className="text-xs text-[#5A6578]">
+                      Selecione quantas aulas você já ministrou neste pacote de <strong>{totalCycle} aulas</strong>:
+                    </p>
+
+                    <div className="grid grid-cols-1 gap-2">
+                      {Array.from({ length: totalCycle + 1 }, (_, i) => i).map((count) => {
+                        const isSelected = quickEditClasses === count;
+                        const isFinished = count >= totalCycle;
+
+                        return (
+                          <button
+                            key={count}
+                            type="button"
+                            onClick={() => setQuickEditClasses(count)}
+                            className={`p-2.5 rounded-xl border text-left flex items-center justify-between text-xs transition-all ${
+                              isSelected
+                                ? isFinished
+                                  ? 'bg-amber-100 border-amber-400 text-amber-950 font-bold shadow-2xs'
+                                  : 'bg-[#8B2626] text-white border-[#8B2626] font-bold shadow-2xs'
+                                : 'bg-white hover:bg-[#FAF7F2] text-[#0F172A] border-[#D4C8B8]'
+                            }`}
+                          >
+                            <span className="flex items-center gap-2">
+                              <span className="font-mono font-bold text-sm">{count} de {totalCycle}</span>
+                              <span className="text-[11px] opacity-80">
+                                {count === 0 && '— Pacote novo iniciado'}
+                                {count === 1 && '— 1ª aula realizada'}
+                                {count === 2 && '— 2 aulas realizadas'}
+                                {count === 3 && '— 3 aulas realizadas (Falta 1)'}
+                                {count === 4 && '— Ciclo Concluído! 🔔 Hora de Renovar'}
+                              </span>
+                            </span>
+                            {isSelected && <Check className="w-4 h-4 shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#EBE4D8]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuickEditStudent(null);
+                    setQuickEditType(null);
+                  }}
+                  className="py-2.5 px-4 rounded-xl border border-[#D4C8B8] text-xs font-semibold text-[#5A6578]"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="py-2.5 px-5 rounded-xl bg-[#8B2626] text-white font-bold text-xs shadow-xs hover:bg-[#731E1E]"
+                >
+                  Confirmar Alteração
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* BACKUP & SINCRONIZAÇÃO MODAL (QR CODE + WHATSAPP + CÓDIGO) */}
+      {isBackupModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl border border-[#EBE4D8] p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[#F2ECE3] pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#8B2626] text-white flex items-center justify-center shadow-2xs">
+                  <Smartphone className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-cormorant text-xl font-bold text-[#0F172A]">
+                    Sincronizar com seu Celular
+                  </h3>
+                  <p className="text-xs text-[#5A6578]">
+                    Transfira seus alunos do computador para o celular instantaneamente
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBackupModalOpen(false)}
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Status Feedback */}
+            {backupStatusMessage && (
+              <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-900">
+                {backupStatusMessage}
+              </div>
+            )}
+
+            {/* SEÇÃO 1: SINCRONIZAÇÃO INSTANTÂNEA VIA QR CODE */}
+            <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#EBE4D8] space-y-3 text-center">
+              <div className="space-y-1">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">
+                  <Sparkles className="w-3 h-3" />
+                  <span>Método Mais Fácil (Recomendado)</span>
+                </span>
+                <h4 className="font-bold text-sm text-[#0F172A]">
+                  Aponte a Câmera do seu Celular
+                </h4>
+                <p className="text-xs text-[#5A6578]">
+                  Ao escanear o QR Code abaixo com seu telefone, o app abrirá automaticamente com todos os seus <strong>{students.length} alunos</strong> salvos!
+                </p>
+              </div>
+
+              {/* QR Code */}
+              <div className="flex justify-center py-1">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+                    studentPortalService.generateSyncUrl()
+                  )}`}
+                  alt="QR Code de Sincronização de Alunos"
+                  className="w-44 h-44 rounded-2xl border-2 border-white shadow-md bg-white p-2"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                {/* Botão de Enviar para WhatsApp */}
+                <a
+                  href={studentPortalService.getSyncWhatsAppUrl(teacherSettings.phone)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Enviar para meu WhatsApp</span>
+                </a>
+
+                {/* Botão de Copiar Link */}
+                <button
+                  type="button"
+                  onClick={handleCopySyncUrl}
+                  className="py-2.5 px-3 rounded-xl bg-white hover:bg-slate-50 text-[#0F172A] font-bold text-xs border border-[#D4C8B8] shadow-2xs transition-all flex items-center justify-center gap-1.5"
+                >
+                  {copiedSyncUrl ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-600" />
+                      <span className="text-emerald-700">Link Copiado!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 text-[#8C7A6B]" />
+                      <span>Copiar Link Direto</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* SEÇÃO 2: CÓPIA DE SEGURANÇA MANUAL (CÓDIGO DE ALUNOS) */}
+            <div className="p-4 rounded-2xl bg-white border border-[#EBE4D8] space-y-3 text-left">
+              <div>
+                <h4 className="font-bold text-xs text-[#0F172A] flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-[#8B2626]" />
+                  <span>Backup Manual (Código dos Alunos)</span>
+                </h4>
+                <p className="text-[11px] text-[#5A6578]">
+                  Você também pode copiar os dados abaixo para salvar um arquivo no seu computador ou colar para restaurar:
+                </p>
+              </div>
+
+              <textarea
+                value={backupCodeText}
+                onChange={(e) => setBackupCodeText(e.target.value)}
+                rows={4}
+                className="w-full p-2.5 rounded-xl border border-[#D4C8B8] font-mono text-[11px] bg-[#FAF7F2]/50 outline-none select-all"
+                placeholder="Cole aqui o código de backup de alunos para restaurar..."
+              />
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyBackup}
+                  className="py-2 px-3.5 rounded-xl bg-white hover:bg-[#FAF7F2] text-[#0F172A] font-bold text-xs border border-[#D4C8B8] shadow-2xs flex items-center gap-1.5"
+                >
+                  <Copy className="w-3.5 h-3.5 text-[#8C7A6B]" />
+                  <span>{copiedBackup ? 'Código Copiado!' : 'Copiar Código'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleImportBackup}
+                  className="py-2 px-3.5 rounded-xl bg-[#8B2626] hover:bg-[#731E1E] text-white font-bold text-xs shadow-xs flex items-center gap-1.5"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Restaurar Alunos Deste Código</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-[#EBE4D8]">
+              <button
+                type="button"
+                onClick={() => setIsBackupModalOpen(false)}
+                className="py-2.5 px-5 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#0F172A] font-bold text-xs"
+              >
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}
