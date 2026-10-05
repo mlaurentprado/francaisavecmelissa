@@ -3,6 +3,7 @@ import { WeeklyModule, StudentProfile, Level, ClassScheduleRecord, PaymentStatus
 import { studentPortalService, TeacherSettings } from '../../services/studentPortalService';
 import { getWhatsAppPaymentReminderUrl, getWhatsAppRescheduleUrl } from '../../services/whatsapp';
 import { WeekContentEditor } from './WeekContentEditor';
+import { StudentProgressPanel } from './StudentProgressPanel';
 import {
   GraduationCap,
   Plus,
@@ -32,6 +33,7 @@ import {
   ShieldCheck,
   QrCode,
   Smartphone,
+  TrendingUp,
 } from 'lucide-react';
 
 interface TeacherDashboardProps {
@@ -50,6 +52,9 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'weeks' | 'students' | 'financial'>('weeks');
   const [studentFilter, setStudentFilter] = useState<string>('ALL');
+
+  // Per-student progress panel (session history + accumulated points)
+  const [progressStudent, setProgressStudent] = useState<StudentProfile | null>(null);
 
   // New Student modal state
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
@@ -685,6 +690,16 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
                   <div className="pt-2 border-t border-[#F2ECE3] flex items-center gap-2">
                     <button
                       type="button"
+                      onClick={() => setProgressStudent(student)}
+                      className="flex-1 py-2 px-3 rounded-xl bg-[#8B2626] hover:bg-[#731E1E] text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                      title="Ver histórico de sessões e pontos acumulados"
+                    >
+                      <TrendingUp className="w-3.5 h-3.5" />
+                      <span>Ver Evolução</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => {
                         setStudentFilter(student.id);
                         setActiveTab('weeks');
@@ -692,7 +707,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
                       className="flex-1 py-2 px-3 rounded-xl border border-[#D4C8B8] hover:bg-[#FAF7F2] text-xs font-semibold text-[#8B2626] transition-colors flex items-center justify-center gap-1.5"
                     >
                       <Layers className="w-3.5 h-3.5" />
-                      <span>Ver Aulas ({weeks.filter((w) => w.studentId === student.id).length})</span>
+                      <span>Aulas ({weeks.filter((w) => w.studentId === student.id || w.studentId === 'ALL').length})</span>
                     </button>
 
                     <button
@@ -1917,6 +1932,21 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
             </div>
           </div>
         </div>
+      )}
+
+      {/* PER-STUDENT PROGRESS PANEL (SESSION HISTORY + POINTS) */}
+      {progressStudent && (
+        <StudentProgressPanel
+          student={students.find((s) => s.id === progressStudent.id) || progressStudent}
+          weeks={weeks}
+          schedules={schedules}
+          onClose={() => setProgressStudent(null)}
+          onViewWeeks={(studentId) => {
+            setStudentFilter(studentId);
+            setActiveTab('weeks');
+            setProgressStudent(null);
+          }}
+        />
       )}
     </div>
   );
