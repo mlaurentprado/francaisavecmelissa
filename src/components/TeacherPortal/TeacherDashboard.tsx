@@ -1810,7 +1810,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
             <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#EBE4D8] space-y-3 text-center">
               <div className="space-y-1">
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold">
-                  <Sparkles className="w-3 h-3" />
+                  <QrCode className="w-3.5 h-3.5" />
                   <span>Método Mais Fácil (Recomendado)</span>
                 </span>
                 <h4 className="font-bold text-sm text-[#0F172A]">

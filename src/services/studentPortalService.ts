@@ -463,9 +463,9 @@ class StudentPortalService {
           this.currentSession = { currentUser: null, isTeacher: true };
           this.saveSession();
 
-          // Clean url hash/query without page reload
+          // Clean url hash/query and flag sync success
           if (window.history && window.history.replaceState) {
-            window.history.replaceState(null, '', window.location.pathname);
+            window.history.replaceState(null, '', window.location.pathname + '#synced=1');
           }
           return { synced: true, count: res.count };
         }
