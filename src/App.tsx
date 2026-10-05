@@ -13,6 +13,7 @@ import { StudentLoginModal } from './components/StudentPortal/StudentLoginModal'
 import { StudentDashboard } from './components/StudentPortal/StudentDashboard';
 import { TeacherDashboard } from './components/TeacherPortal/TeacherDashboard';
 import { studentPortalService } from './services/studentPortalService';
+import { FLASHCARDS_DATA, QUIZ_DATA, DICTEE_DATA, FICHES_DATA } from './data/learningContent';
 import { Heart, Smartphone, GraduationCap, ArrowRight, Sparkles } from 'lucide-react';
 
 export function App() {
