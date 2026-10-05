@@ -25,6 +25,13 @@ sessions, points, teacher settings) lives in `localStorage`, seeded from mocks i
   refresh is needed.
 
 ## Quirks worth knowing
+- **Student storage keys** (`studentPortalService`): students are read from and written to the
+  SAME canonical keys (`fam_portal_students_permanent`, `fam_portal_students_v4`); every save also
+  *removes* the older mirrors (`fam_portal_students_v1..v3`, `fam_portal_students`, `fam_students`,
+  `*_backup`). Keep the read set and the write set in sync — an asymmetric set lets a stale copy
+  resurrect students the teacher deleted. An existing saved list is authoritative **even when
+  empty**: `INITIAL_STUDENTS` (the Lucas/Juliana/Camila demo data) is seeded only when no student
+  key exists at all, so deleting every student must not bring the demos back.
 - **PWA service worker**: registration lives in `src/main.tsx` via
   `src/services/pwaUpdate.ts` (it used to be an inline script in `index.html`). The strategy is
   **network-first for every same-origin GET**, with the versioned cache (`fam-cache-vN` in
