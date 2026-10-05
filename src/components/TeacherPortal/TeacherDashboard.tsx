@@ -247,6 +247,15 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
     }
   };
 
+  const handleCopySyncUrl = () => {
+    const url = studentPortalService.generateSyncUrl();
+    if (navigator.clipboard && url) {
+      navigator.clipboard.writeText(url);
+      setCopiedSyncUrl(true);
+      setTimeout(() => setCopiedSyncUrl(false), 2500);
+    }
+  };
+
   const handleImportBackup = () => {
     if (!backupCodeText.trim()) return;
     const result = studentPortalService.importStudentsData(backupCodeText.trim());
