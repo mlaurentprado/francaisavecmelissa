@@ -25,9 +25,13 @@ sessions, points, teacher settings) lives in `localStorage`, seeded from mocks i
   refresh is needed.
 
 ## Quirks worth knowing
-- **PWA service worker**: `public/sw.js` registers on load. Navigation is network-first (so dev edits
-  show) but assets are stale-while-revalidate, so a cached JS module can briefly lag behind an edit —
-  a hard reload / `reload_preview` clears it.
+- **PWA service worker**: registration lives in `src/main.tsx` via
+  `src/services/pwaUpdate.ts` (it used to be an inline script in `index.html`). The strategy is
+  **network-first for every same-origin GET**, with the versioned cache (`fam-cache-vN` in
+  `public/sw.js`) used only as an offline fallback — so an online device always renders the newest
+  code. `sw.js` calls `skipWaiting()` and the page reloads itself on `controllerchange`, which is what
+  makes an already-installed phone app pick up a new version automatically; never remove `skipWaiting`
+  or the `controllerchange` reload without providing another update path.
 - **Gemini API key is optional**: `src/services/geminiService.ts` reads the key from `localStorage`
   first, then `VITE_GEMINI_API_KEY` (baked by Vite from the container env at dev-server start).
   Without a key, `WeekContentEditor` falls back to `lessonGeneratorService` (deterministic
