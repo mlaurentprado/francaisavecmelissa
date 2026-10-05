@@ -59,3 +59,15 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #BEB6A8;
 }
+
+/* Remove all browser up/down arrow steppers (flechas) from number inputs */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+

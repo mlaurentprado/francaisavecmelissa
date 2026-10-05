@@ -79,6 +79,7 @@ export interface StudentPaymentInfo {
   status: PaymentStatus;
   billingCycleClasses: number; // Quantidade de aulas por pacote (padrão: 4)
   completedClassesInCycle: number; // Aulas realizadas no ciclo atual (0 a billingCycleClasses)
+  paymentDate?: string; // Data do pagamento ou próximo vencimento/aula (ex: "2026-10-10")
   dueDay?: number; // mantido opcional para retrocompatibilidade
   lastPaymentDate?: string;
   pixKey?: string;

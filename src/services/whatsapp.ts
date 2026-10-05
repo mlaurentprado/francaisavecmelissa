@@ -23,8 +23,16 @@ export function getWhatsAppPaymentReminderUrl(
   pixKey: string
 ): string {
   const cleanPhone = student.phone ? student.phone.replace(/\D/g, '') : '';
+  const firstName = student.name.split(' ')[0];
+  const totalClasses = payment.billingCycleClasses || 4;
+  const completed = payment.completedClassesInCycle || 0;
 
-  const message = `Bonjour ${student.name.split(' ')[0]} ! 🥐\n\nTudo bem? Passando para lembrar com carinho sobre a mensalidade do seu curso de francês (*${payment.planName}*).\n\n📌 *Valor:* R$ ${payment.amount.toFixed(2).replace('.', ',')}\n📅 *Vencimento:* Todo dia ${payment.dueDay}\n🔑 *Chave PIX:* ${pixKey || 'melissa.frances@exemplo.com'}\n\nAssim que puder efetuar, basta me enviar o comprovante por aqui. Qualquer dúvida estou à disposição!\n\nMerci beaucoup e bons estudos! ✦\nMelissa Laurent`;
+  const cycleStatus =
+    completed >= totalClasses
+      ? `Completamos hoje as *${totalClasses} aulas* do nosso ciclo! 🎓`
+      : `Já realizamos *${completed} de ${totalClasses} aulas* do nosso ciclo! 🥐`;
+
+  const message = `Bonjour ${firstName} ! 🇫🇷\n\nTudo bem? ${cycleStatus}\n\nPassando para enviar as informações para renovação do seu pacote de *${totalClasses} aulas* (*${payment.planName}*).\n\n📌 *Pacote:* ${totalClasses} aulas particulares\n💰 *Valor:* R$ ${payment.amount.toFixed(2).replace('.', ',')}\n🔑 *Chave PIX:* ${pixKey || 'melissa.frances@exemplo.com'}\n\nAssim que puder efetuar, basta me enviar o comprovante por aqui para agendarmos os próximos horários. Qualquer dúvida estou à disposição!\n\nMerci beaucoup e bons estudos! ✦\nMelissa Laurent`;
 
   const encoded = encodeURIComponent(message);
   return cleanPhone ? `https://wa.me/${cleanPhone}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
@@ -40,10 +48,11 @@ export function getWhatsAppReceiptUrl(
 ): string {
   const cleanPhone = teacherPhone ? teacherPhone.replace(/\D/g, '') : '';
   const firstName = student.name.split(' ')[0];
+  const totalClasses = payment?.billingCycleClasses || 4;
 
-  const message = `Bonjour Melissa ! 🥐\nAqui é o(a) ${firstName}. Acabei de efetuar o pagamento da mensalidade de francês${
-    payment ? ` referente ao plano *${payment.planName}* (R$ ${payment.amount.toFixed(2).replace('.', ',')})` : ''
-  }.\n\nSegue o comprovante em anexo. Merci ! ✨`;
+  const message = `Bonjour Melissa ! 🥐\nAqui é o(a) ${firstName}. Acabei de efetuar o pagamento do pacote de ${totalClasses} aulas de francês${
+    payment ? ` (${payment.planName} - R$ ${payment.amount.toFixed(2).replace('.', ',')})` : ''
+  }.\n\nSegue o comprovante em anexo para renovação do ciclo. Merci ! ✨`;
 
   const encoded = encodeURIComponent(message);
   return cleanPhone ? `https://wa.me/${cleanPhone}?text=${encoded}` : `https://wa.me/?text=${encoded}`;

@@ -19,6 +19,8 @@ import {
   Calendar,
   AlertCircle,
   MessageCircle,
+  Clock,
+  CheckCircle,
 } from 'lucide-react';
 
 interface StudentDashboardProps {
@@ -216,86 +218,149 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         </div>
       )}
 
-      {/* Lembrete de Mensalidade & Pagamento */}
-      {student.payment && (
-        <div className="bg-white rounded-3xl border border-[#EBE4D8] p-5 sm:p-6 shadow-2xs space-y-4 text-left">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#F2ECE3] pb-3.5">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-[#FAF7F2] text-[#8B2626] flex items-center justify-center border border-[#DDD3C1] shrink-0">
-                <CreditCard className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="font-bold text-sm sm:text-base text-[#0F172A]">
-                    {student.payment.planName || 'Mensalidade de Francês'}
-                  </h4>
-                  <span className="text-xs font-bold text-[#8B2626] bg-[#FAF7F2] px-2.5 py-0.5 rounded-full border border-[#DDD3C1]">
-                    R$ {student.payment.amount.toFixed(2).replace('.', ',')}
-                  </span>
+      {/* Lembrete de Pagamento por Ciclo de Aulas (a cada 4 aulas) */}
+      {student.payment && (() => {
+        const totalClasses = student.payment.billingCycleClasses || 4;
+        const completedClasses = student.payment.completedClassesInCycle || 0;
+        const isCycleCompleted = completedClasses >= totalClasses;
+        const classesRemaining = Math.max(0, totalClasses - completedClasses);
+
+        return (
+          <div className="bg-white rounded-3xl border border-[#EBE4D8] p-5 sm:p-6 shadow-2xs space-y-4 text-left">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#F2ECE3] pb-3.5">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-[#FAF7F2] text-[#8B2626] flex items-center justify-center border border-[#DDD3C1] shrink-0">
+                  <CreditCard className="w-5 h-5" />
                 </div>
-                <p className="text-xs text-[#5A6578]">
-                  Vencimento: <strong>Todo dia {student.payment.dueDay}</strong> do mês
-                </p>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-bold text-sm sm:text-base text-[#0F172A]">
+                      {student.payment.planName || 'Pacote de Aulas Particulares'}
+                    </h4>
+                    <span className="text-xs font-bold text-[#8B2626] bg-[#FAF7F2] px-2.5 py-0.5 rounded-full border border-[#DDD3C1]">
+                      R$ {student.payment.amount.toFixed(2).replace('.', ',')}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#5A6578]">
+                    Pagamento <strong>a cada {totalClasses} aulas</strong> ministradas (sem data fixa)
+                  </p>
+                </div>
+              </div>
+
+              {/* Status Badge */}
+              <div className="self-start sm:self-auto">
+                {!isCycleCompleted && student.payment.status === 'paid' && (
+                  <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 flex items-center gap-1.5 shadow-2xs">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Ciclo em dia ✨ ({completedClasses}/{totalClasses} aulas)</span>
+                  </span>
+                )}
+                {isCycleCompleted && (
+                  <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300 flex items-center gap-1.5 shadow-2xs">
+                    <Clock className="w-4 h-4 text-amber-600" />
+                    <span>Renovação Necessária ({totalClasses}/{totalClasses} aulas)</span>
+                  </span>
+                )}
+                {!isCycleCompleted && student.payment.status === 'pending' && (
+                  <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300 flex items-center gap-1.5 shadow-2xs">
+                    <Clock className="w-4 h-4 text-amber-600" />
+                    <span>Aguardando Pagamento</span>
+                  </span>
+                )}
+                {student.payment.status === 'overdue' && (
+                  <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-rose-50 text-rose-800 border border-rose-300 flex items-center gap-1.5 shadow-2xs">
+                    <AlertCircle className="w-4 h-4 text-rose-600" />
+                    <span>Pagamento Pendente</span>
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* Status Badge */}
-            <div className="self-start sm:self-auto">
-              {student.payment.status === 'paid' && (
-                <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 flex items-center gap-1.5 shadow-2xs">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>Mensalidade em dia ✨</span>
+            {/* Visual Class Tracker (A cada 4 aulas) */}
+            <div className="bg-[#FAF7F2] border border-[#E8DFD1] rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#0F172A] flex items-center gap-1.5">
+                  <CheckCircle className="w-4 h-4 text-[#8B2626]" />
+                  <span>Progresso do Ciclo Atual:</span>
                 </span>
-              )}
-              {student.payment.status === 'pending' && (
-                <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300 flex items-center gap-1.5 shadow-2xs">
-                  <AlertCircle className="w-4 h-4 text-amber-600" />
-                  <span>Próximo do vencimento</span>
+                <span className="text-xs font-bold text-[#8B2626]">
+                  {completedClasses} de {totalClasses} aulas realizadas
                 </span>
-              )}
-              {student.payment.status === 'overdue' && (
-                <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-rose-50 text-rose-800 border border-rose-300 flex items-center gap-1.5 shadow-2xs">
-                  <AlertCircle className="w-4 h-4 text-rose-600" />
-                  <span>Pagamento pendente</span>
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Dados do PIX e Enviar Comprovante */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
-            <div className="space-y-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#78644E]">
-                Chave PIX da Professora Melissa:
-              </span>
-              <div className="flex items-center gap-2">
-                <code className="bg-[#FAF7F2] border border-[#DDD3C1] px-3.5 py-1.5 rounded-xl font-mono text-xs text-[#0F172A] font-bold">
-                  {student.payment.pixKey || teacherSettings.pixKey}
-                </code>
-                <button
-                  type="button"
-                  onClick={handleCopyPix}
-                  className="py-1.5 px-3 rounded-xl border border-[#D4C8B8] hover:bg-[#FAF7F2] text-xs font-bold text-[#8B2626] transition-colors flex items-center gap-1 shadow-2xs"
-                  title="Copiar Chave PIX"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>{copiedPix ? 'Copiado!' : 'Copiar'}</span>
-                </button>
               </div>
+
+              {/* Steps Indicator */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {Array.from({ length: totalClasses }).map((_, i) => {
+                  const isDone = i < completedClasses;
+                  const isCurrent = i === completedClasses;
+                  return (
+                    <div
+                      key={i}
+                      className={`p-2.5 rounded-xl border text-center transition-all ${
+                        isDone
+                          ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-bold'
+                          : isCurrent
+                          ? 'bg-white border-[#8B2626] text-[#8B2626] font-bold shadow-2xs ring-2 ring-[#8B2626]/10'
+                          : 'bg-white/60 border-[#E8DFD1] text-[#A0907E]'
+                      }`}
+                    >
+                      <div className="text-[10px] uppercase tracking-wider">Aula {i + 1}</div>
+                      <div className="text-xs mt-0.5 font-semibold">
+                        {isDone ? 'Concluída ✓' : isCurrent ? 'Próxima ✦' : 'A realizar'}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p className="text-[11px] text-[#5A6578]">
+                {isCycleCompleted ? (
+                  <span className="text-amber-900 font-bold">
+                    🎉 Você completou todas as {totalClasses} aulas deste ciclo! Efetue o pagamento do próximo pacote de {totalClasses} aulas para renovar suas aulas com a Melissa.
+                  </span>
+                ) : (
+                  <>
+                    Falta(m) <strong>{classesRemaining} aula(s)</strong> para a conclusão deste pacote. O pagamento do próximo pacote é feito ao final das {totalClasses} aulas.
+                  </>
+                )}
+              </p>
             </div>
 
-            <a
-              href={getWhatsAppReceiptUrl(student, student.payment, teacherSettings.phone)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="py-3 px-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 self-start sm:self-auto shrink-0"
-            >
-              <MessageCircle className="w-4 h-4" />
-              <span>Enviar Comprovante (WhatsApp)</span>
-            </a>
+            {/* Dados do PIX e Enviar Comprovante */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+              <div className="space-y-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#78644E]">
+                  Chave PIX da Professora Melissa:
+                </span>
+                <div className="flex items-center gap-2">
+                  <code className="bg-[#FAF7F2] border border-[#DDD3C1] px-3.5 py-1.5 rounded-xl font-mono text-xs text-[#0F172A] font-bold">
+                    {student.payment.pixKey || teacherSettings.pixKey}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={handleCopyPix}
+                    className="py-1.5 px-3 rounded-xl border border-[#D4C8B8] hover:bg-[#FAF7F2] text-xs font-bold text-[#8B2626] transition-colors flex items-center gap-1 shadow-2xs"
+                    title="Copiar Chave PIX"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>{copiedPix ? 'Copiado!' : 'Copiar'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <a
+                href={getWhatsAppReceiptUrl(student, student.payment, teacherSettings.phone)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="py-3 px-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 self-start sm:self-auto shrink-0"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>Enviar Comprovante (WhatsApp)</span>
+              </a>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Weekly Content Timeline */}
       <div className="space-y-4">

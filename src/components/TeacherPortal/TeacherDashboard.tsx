@@ -28,6 +28,10 @@ import {
   Settings,
   Copy,
   Check,
+  RefreshCw,
+  ShieldCheck,
+  QrCode,
+  Smartphone,
 } from 'lucide-react';
 
 interface TeacherDashboardProps {
@@ -56,7 +60,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
   const [newStudentLevel, setNewStudentLevel] = useState<Level>('A1');
   const [newStudentPlan, setNewStudentPlan] = useState('Aulas Particulares VIP');
   const [newStudentAmount, setNewStudentAmount] = useState(480);
-  const [newStudentDueDay, setNewStudentDueDay] = useState(10);
+  const [newStudentBillingCycle, setNewStudentBillingCycle] = useState(4);
+  const [newStudentCompletedClasses, setNewStudentCompletedClasses] = useState(0);
 
   // Reschedule / Cancellation Modal State
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
@@ -70,8 +75,24 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
   const [editingPaymentStudent, setEditingPaymentStudent] = useState<StudentProfile | null>(null);
   const [editPlanName, setEditPlanName] = useState('');
   const [editAmount, setEditAmount] = useState(480);
-  const [editDueDay, setEditDueDay] = useState(10);
-  const [editStatus, setEditStatus] = useState<PaymentStatus>('pending');
+  const [editBillingCycle, setEditBillingCycle] = useState(4);
+  const [editCompletedClasses, setEditCompletedClasses] = useState(0);
+  const [editPaymentDate, setEditPaymentDate] = useState('2026-10-10');
+  const [editStatus, setEditStatus] = useState<PaymentStatus>('paid');
+
+  // Quick Edit Modal State (amount, date, classes)
+  const [quickEditStudent, setQuickEditStudent] = useState<StudentProfile | null>(null);
+  const [quickEditType, setQuickEditType] = useState<'amount' | 'date' | 'classes' | null>(null);
+  const [quickEditAmount, setQuickEditAmount] = useState(480);
+  const [quickEditDate, setQuickEditDate] = useState('');
+  const [quickEditClasses, setQuickEditClasses] = useState(0);
+
+  // Backup / Sync Modal State
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const [backupCodeText, setBackupCodeText] = useState('');
+  const [backupStatusMessage, setBackupStatusMessage] = useState<string | null>(null);
+  const [copiedBackup, setCopiedBackup] = useState(false);
+  const [copiedSyncUrl, setCopiedSyncUrl] = useState(false);
 
   // Teacher PIX Settings Modal State
   const [isPixSettingsOpen, setIsPixSettingsOpen] = useState(false);
@@ -108,8 +129,9 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
       payment: {
         planName: newStudentPlan,
         amount: Number(newStudentAmount) || 480,
-        dueDay: Number(newStudentDueDay) || 10,
-        status: 'pending',
+        billingCycleClasses: Number(newStudentBillingCycle) || 4,
+        completedClassesInCycle: Number(newStudentCompletedClasses) || 0,
+        status: 'paid',
       },
     });
 
@@ -119,6 +141,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
     setNewStudentEmail('');
     setNewStudentPhone('');
     setNewStudentPin('1234');
+    setNewStudentBillingCycle(4);
+    setNewStudentCompletedClasses(0);
   };
 
   const handleDeleteStudent = (student: StudentProfile) => {
@@ -137,7 +161,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
     }
   };
 
-  // --- FINANCIAL & PAYMENTS HANDLERS ---
+  // --- FINANCIAL & CLASS CYCLE HANDLERS ---
   const handleTogglePaymentStatus = (studentId: string, currentStatus: PaymentStatus) => {
     const nextStatus: PaymentStatus =
       currentStatus === 'paid' ? 'pending' : currentStatus === 'pending' ? 'overdue' : 'paid';
@@ -146,12 +170,102 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
     setStudents(studentPortalService.getStudents());
   };
 
+  const handleIncrementClass = (studentId: string) => {
+    studentPortalService.incrementStudentClass(studentId);
+    setStudents(studentPortalService.getStudents());
+  };
+
+  const handleDecrementClass = (studentId: string) => {
+    studentPortalService.decrementStudentClass(studentId);
+    setStudents(studentPortalService.getStudents());
+  };
+
+  const handleRenewCycle = (studentId: string) => {
+    studentPortalService.renewStudentCycle(studentId);
+    setStudents(studentPortalService.getStudents());
+  };
+
+  const formatDisplayDate = (d?: string) => {
+    if (!d) return 'Definir data';
+    try {
+      const [year, month, day] = d.split('-');
+      if (year && month && day) {
+        return `${day}/${month}/${year}`;
+      }
+      return d;
+    } catch (_) {
+      return d;
+    }
+  };
+
+  const handleOpenQuickEdit = (student: StudentProfile, type: 'amount' | 'date' | 'classes') => {
+    setQuickEditStudent(student);
+    setQuickEditType(type);
+    setQuickEditAmount(student.payment?.amount || 480);
+    setQuickEditDate(student.payment?.paymentDate || student.payment?.lastPaymentDate || new Date().toISOString().split('T')[0]);
+    setQuickEditClasses(student.payment?.completedClassesInCycle || 0);
+  };
+
+  const handleSaveQuickEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickEditStudent || !quickEditType) return;
+
+    if (quickEditType === 'amount') {
+      studentPortalService.updateStudentPayment(quickEditStudent.id, {
+        amount: Number(quickEditAmount) || 480,
+      });
+    } else if (quickEditType === 'date') {
+      studentPortalService.updateStudentPayment(quickEditStudent.id, {
+        paymentDate: quickEditDate || new Date().toISOString().split('T')[0],
+      });
+    } else if (quickEditType === 'classes') {
+      const totalClasses = quickEditStudent.payment?.billingCycleClasses || 4;
+      const completed = Number(quickEditClasses) || 0;
+      const status = completed >= totalClasses ? 'pending' : (quickEditStudent.payment?.status || 'paid');
+      studentPortalService.updateStudentPayment(quickEditStudent.id, {
+        completedClassesInCycle: completed,
+        status,
+      });
+    }
+
+    setStudents(studentPortalService.getStudents());
+    setQuickEditStudent(null);
+    setQuickEditType(null);
+  };
+
+  const handleOpenBackup = () => {
+    setIsBackupModalOpen(true);
+    setBackupCodeText(studentPortalService.exportStudentsData());
+    setBackupStatusMessage(null);
+  };
+
+  const handleCopyBackup = () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(backupCodeText);
+      setCopiedBackup(true);
+      setTimeout(() => setCopiedBackup(false), 2500);
+    }
+  };
+
+  const handleImportBackup = () => {
+    if (!backupCodeText.trim()) return;
+    const result = studentPortalService.importStudentsData(backupCodeText.trim());
+    if (result.success) {
+      setStudents(studentPortalService.getStudents());
+      setBackupStatusMessage(`✅ Sucesso! ${result.count || 0} alunos salvos e sincronizados com perfeição.`);
+    } else {
+      setBackupStatusMessage(`❌ Erro: ${result.message}`);
+    }
+  };
+
   const handleOpenEditPayment = (student: StudentProfile) => {
     setEditingPaymentStudent(student);
-    setEditPlanName(student.payment?.planName || 'Aulas Particulares VIP');
+    setEditPlanName(student.payment?.planName || 'Aulas Particulares VIP (Pacote 4 Aulas)');
     setEditAmount(student.payment?.amount || 480);
-    setEditDueDay(student.payment?.dueDay || 10);
-    setEditStatus(student.payment?.status || 'pending');
+    setEditBillingCycle(student.payment?.billingCycleClasses || 4);
+    setEditCompletedClasses(student.payment?.completedClassesInCycle || 0);
+    setEditPaymentDate(student.payment?.paymentDate || student.payment?.lastPaymentDate || new Date().toISOString().split('T')[0]);
+    setEditStatus(student.payment?.status || 'paid');
   };
 
   const handleSavePaymentEdit = (e: React.FormEvent) => {
@@ -161,7 +275,9 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
     studentPortalService.updateStudentPayment(editingPaymentStudent.id, {
       planName: editPlanName,
       amount: Number(editAmount),
-      dueDay: Number(editDueDay),
+      billingCycleClasses: Number(editBillingCycle) || 4,
+      completedClassesInCycle: Number(editCompletedClasses) || 0,
+      paymentDate: editPaymentDate,
       status: editStatus,
     });
 
@@ -503,14 +619,26 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setIsAddStudentOpen(true)}
-              className="py-2.5 px-4 rounded-xl bg-[#8B2626] hover:bg-[#731E1E] text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 self-start sm:self-auto shrink-0"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>+ Adicionar Aluno</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0">
+              <button
+                type="button"
+                onClick={handleOpenBackup}
+                className="py-2.5 px-3.5 rounded-xl bg-white hover:bg-[#FAF7F2] text-[#8B2626] font-bold text-xs border border-[#D4C8B8] shadow-2xs transition-all flex items-center justify-center gap-1.5"
+                title="Sincronizar alunos com o celular via QR Code, WhatsApp ou Backup"
+              >
+                <Smartphone className="w-4 h-4 text-[#8B2626]" />
+                <span>Sincronizar Celular</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsAddStudentOpen(true)}
+                className="py-2.5 px-4 rounded-xl bg-[#8B2626] hover:bg-[#731E1E] text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>+ Adicionar Aluno</span>
+              </button>
+            </div>
           </div>
 
           {students.length === 0 ? (
@@ -592,26 +720,26 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
             <div className="bg-white p-5 rounded-3xl border border-[#EBE4D8] shadow-2xs space-y-1">
               <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Recebido no Mês</span>
+                <span>Recebido no Ciclo</span>
               </span>
               <p className="font-cormorant text-3xl font-bold text-emerald-700">
                 R$ {totalPaid.toFixed(2).replace('.', ',')}
               </p>
               <p className="text-[11px] text-[#5A6578]">
-                {students.filter((s) => s.payment?.status === 'paid').length} mensalidades quitadas
+                {students.filter((s) => s.payment?.status === 'paid').length} pacotes em dia
               </p>
             </div>
 
             <div className="bg-white p-5 rounded-3xl border border-[#EBE4D8] shadow-2xs space-y-1">
               <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-amber-600" />
-                <span>A Vencer (Pendente)</span>
+                <span>A Renovar (Pendente)</span>
               </span>
               <p className="font-cormorant text-3xl font-bold text-amber-700">
                 R$ {totalPending.toFixed(2).replace('.', ',')}
               </p>
               <p className="text-[11px] text-[#5A6578]">
-                {students.filter((s) => s.payment?.status === 'pending').length} mensalidades a vencer
+                {students.filter((s) => s.payment?.status === 'pending').length} renovações necessárias
               </p>
             </div>
 
@@ -624,7 +752,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
                 R$ {totalOverdue.toFixed(2).replace('.', ',')}
               </p>
               <p className="text-[11px] text-[#5A6578]">
-                {students.filter((s) => s.payment?.status === 'overdue').length} mensalidades pendentes
+                {students.filter((s) => s.payment?.status === 'overdue').length} pacotes pendentes
               </p>
             </div>
 
@@ -664,12 +792,22 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
               <div>
                 <h3 className="font-cormorant text-2xl font-bold text-[#0F172A] flex items-center gap-2">
                   <DollarSign className="w-5 h-5 text-[#8B2626]" />
-                  <span>Controle de Pagamentos dos Alunos</span>
+                  <span>Controle de Pagamentos dos Alunos (A cada 4 Aulas)</span>
                 </h3>
                 <p className="text-xs text-[#5A6578]">
-                  Acompanhe vencimentos, alterne o status com 1 clique e envie lembretes gentis no WhatsApp.
+                  Controle por ciclo de aulas sem data fixa. Clique nos botões de valor, data e aulas para editar diretamente sem flechas.
                 </p>
               </div>
+
+              <button
+                type="button"
+                onClick={handleOpenBackup}
+                className="py-2 px-3.5 rounded-xl bg-white hover:bg-[#FAF7F2] text-[#8B2626] font-bold text-xs border border-[#D4C8B8] shadow-2xs transition-all flex items-center justify-center gap-1.5 shrink-0"
+                title="Sincronizar com celular via QR Code ou WhatsApp"
+              >
+                <Smartphone className="w-4 h-4 text-[#8B2626]" />
+                <span>Sincronizar Celular</span>
+              </button>
             </div>
 
             <div className="space-y-3">
@@ -677,17 +815,22 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
                 const payment = student.payment || {
                   planName: 'Aulas VIP Individuais',
                   amount: 480,
-                  dueDay: 10,
-                  status: 'pending' as PaymentStatus,
+                  billingCycleClasses: 4,
+                  completedClassesInCycle: 0,
+                  status: 'paid' as PaymentStatus,
                 };
+
+                const totalClasses = payment.billingCycleClasses || 4;
+                const completed = payment.completedClassesInCycle || 0;
+                const isCycleCompleted = completed >= totalClasses;
 
                 return (
                   <div
                     key={student.id}
-                    className="p-4 sm:p-5 rounded-2xl border border-[#EBE4D8] bg-[#FAF7F2]/40 hover:bg-[#FAF7F2] transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4"
+                    className="p-4 sm:p-5 rounded-2xl border border-[#EBE4D8] bg-[#FAF7F2]/40 hover:bg-[#FAF7F2] transition-colors flex flex-col lg:flex-row lg:items-center justify-between gap-4"
                   >
                     {/* Aluno & Plano */}
-                    <div className="flex items-center gap-3 min-w-[220px]">
+                    <div className="flex items-center gap-3 min-w-[200px]">
                       <div className="w-10 h-10 rounded-full bg-[#8B2626] text-white flex items-center justify-center font-cormorant text-lg font-bold shrink-0">
                         {student.name.charAt(0)}
                       </div>
@@ -697,24 +840,71 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
                       </div>
                     </div>
 
-                    {/* Valor e Vencimento */}
-                    <div className="flex items-center gap-6 text-xs">
-                      <div>
-                        <span className="text-[#8C7A6B] block">Valor Mensal</span>
-                        <span className="font-bold text-sm text-[#0F172A]">
-                          R$ {payment.amount.toFixed(2).replace('.', ',')}
-                        </span>
+                    {/* Botões Editáveis Sem Flechas (Valor, Data e Aulas) */}
+                    <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs">
+                      {/* Botão de Valor Editável */}
+                      <div className="space-y-1">
+                        <span className="text-[#8C7A6B] block text-[11px] font-semibold">Valor do Pacote</span>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenQuickEdit(student, 'amount')}
+                          className="py-1.5 px-3 rounded-xl bg-white hover:bg-[#FAF7F2] text-[#0F172A] font-bold text-xs border border-[#D4C8B8] hover:border-[#8B2626] transition-all flex items-center gap-1.5 shadow-2xs group"
+                          title="Clique para editar o valor do pacote"
+                        >
+                          <span>R$ {payment.amount.toFixed(2).replace('.', ',')}</span>
+                          <Edit2 className="w-3 h-3 text-[#8B2626] opacity-70 group-hover:opacity-100" />
+                        </button>
                       </div>
-                      <div>
-                        <span className="text-[#8C7A6B] block">Dia Vencimento</span>
-                        <span className="font-bold text-sm text-[#0F172A]">
-                          Todo dia {payment.dueDay}
-                        </span>
+
+                      {/* Botão de Data Editável */}
+                      <div className="space-y-1">
+                        <span className="text-[#8C7A6B] block text-[11px] font-semibold">Data do Pagamento</span>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenQuickEdit(student, 'date')}
+                          className="py-1.5 px-3 rounded-xl bg-white hover:bg-[#FAF7F2] text-[#0F172A] font-bold text-xs border border-[#D4C8B8] hover:border-[#8B2626] transition-all flex items-center gap-1.5 shadow-2xs group"
+                          title="Clique para editar a data de pagamento"
+                        >
+                          <Calendar className="w-3.5 h-3.5 text-[#8B2626]" />
+                          <span>{formatDisplayDate(payment.paymentDate)}</span>
+                          <Edit2 className="w-3 h-3 text-[#8B2626] opacity-70 group-hover:opacity-100" />
+                        </button>
+                      </div>
+
+                      {/* Botão de Aulas do Ciclo (Sem Flechas) */}
+                      <div className="space-y-1">
+                        <span className="text-[#8C7A6B] block text-[11px] font-semibold">Aulas no Ciclo</span>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenQuickEdit(student, 'classes')}
+                          className={`py-1.5 px-3 rounded-xl font-bold text-xs border transition-all flex items-center gap-1.5 shadow-2xs group ${
+                            isCycleCompleted
+                              ? 'bg-amber-100 border-amber-300 text-amber-900 hover:bg-amber-200'
+                              : 'bg-white hover:bg-[#FAF7F2] text-[#0F172A] border-[#D4C8B8] hover:border-[#8B2626]'
+                          }`}
+                          title="Clique para definir as aulas dadas (0 a 4)"
+                        >
+                          <GraduationCap className="w-3.5 h-3.5 text-[#8B2626]" />
+                          <span>{completed} de {totalClasses} aulas</span>
+                          <Edit2 className="w-3 h-3 text-[#8B2626] opacity-70 group-hover:opacity-100" />
+                        </button>
                       </div>
                     </div>
 
-                    {/* Status Badge Clicável */}
-                    <div className="flex items-center gap-2">
+                    {/* Status Badge e Ações */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {isCycleCompleted && (
+                        <button
+                          type="button"
+                          onClick={() => handleRenewCycle(student.id)}
+                          className="py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-xs transition-all flex items-center gap-1"
+                          title="Aluno pagou o próximo pacote! Zerar aulas e registrar novo ciclo"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          <span>Renovar Pacote (Pago ✨)</span>
+                        </button>
+                      )}
+
                       <button
                         type="button"
                         onClick={() => handleTogglePaymentStatus(student.id, payment.status)}
@@ -736,7 +926,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
                         {payment.status === 'pending' && (
                           <>
                             <Clock className="w-3.5 h-3.5 text-amber-600" />
-                            <span>Pendente</span>
+                            <span>{isCycleCompleted ? 'Renovação' : 'Pendente'}</span>
                           </>
                         )}
                         {payment.status === 'overdue' && (
@@ -751,22 +941,22 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
                         type="button"
                         onClick={() => handleOpenEditPayment(student)}
                         className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-white rounded-lg transition-colors border border-transparent hover:border-[#DDD3C1]"
-                        title="Editar valor ou plano"
+                        title="Editar valor ou aulas do pacote"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
-                    </div>
 
-                    {/* Botão de Enviar Lembrete no WhatsApp */}
-                    <a
-                      href={getWhatsAppPaymentReminderUrl(student, payment, teacherSettings.pixKey)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 shrink-0 self-start md:self-auto"
-                    >
-                      <MessageCircle className="w-4 h-4" />
-                      <span>Enviar Lembrete WhatsApp</span>
-                    </a>
+                      {/* Botão de Enviar Lembrete no WhatsApp */}
+                      <a
+                        href={getWhatsAppPaymentReminderUrl(student, payment, teacherSettings.pixKey)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="py-2 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 shrink-0"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        <span>Lembrete WhatsApp</span>
+                      </a>
+                    </div>
                   </div>
                 );
               })}
@@ -977,7 +1167,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-bold text-[#0F172A] mb-1">
-                    Valor Mensalidade (R$) :
+                    Valor do Pacote (R$) :
                   </label>
                   <input
                     type="number"
@@ -989,16 +1179,18 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
 
                 <div>
                   <label className="block text-xs font-bold text-[#0F172A] mb-1">
-                    Dia Vencimento :
+                    Ciclo de Aulas (Pacote) :
                   </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={31}
-                    value={newStudentDueDay}
-                    onChange={(e) => setNewStudentDueDay(Number(e.target.value))}
-                    className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs font-bold bg-[#FAF7F2]/50"
-                  />
+                  <select
+                    value={newStudentBillingCycle}
+                    onChange={(e) => setNewStudentBillingCycle(Number(e.target.value))}
+                    className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs font-bold bg-white"
+                  >
+                    <option value={4}>A cada 4 aulas (Padrão)</option>
+                    <option value={8}>A cada 8 aulas</option>
+                    <option value={12}>A cada 12 aulas</option>
+                    <option value={1}>A cada 1 aula (Avulsa)</option>
+                  </select>
                 </div>
               </div>
 
@@ -1203,7 +1395,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-[#0F172A] mb-1">
-                    Valor Mensal (R$) :
+                    Valor do Pacote (R$) :
                   </label>
                   <input
                     type="number"
@@ -1216,16 +1408,45 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
 
                 <div>
                   <label className="block text-xs font-bold text-[#0F172A] mb-1">
-                    Dia Vencimento :
+                    Ciclo de Aulas :
+                  </label>
+                  <select
+                    value={editBillingCycle}
+                    onChange={(e) => setEditBillingCycle(Number(e.target.value))}
+                    className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs font-bold bg-white"
+                  >
+                    <option value={4}>A cada 4 aulas (Padrão)</option>
+                    <option value={8}>A cada 8 aulas</option>
+                    <option value={12}>A cada 12 aulas</option>
+                    <option value={1}>A cada 1 aula (Avulsa)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                    Aulas Dadas no Ciclo :
                   </label>
                   <input
                     type="number"
-                    min={1}
-                    max={31}
-                    value={editDueDay}
-                    onChange={(e) => setEditDueDay(Number(e.target.value))}
+                    min={0}
+                    max={editBillingCycle}
+                    value={editCompletedClasses}
+                    onChange={(e) => setEditCompletedClasses(Number(e.target.value))}
                     className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs font-bold bg-[#FAF7F2]/50"
-                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                    Data do Pagamento :
+                  </label>
+                  <input
+                    type="date"
+                    value={editPaymentDate}
+                    onChange={(e) => setEditPaymentDate(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs font-bold bg-[#FAF7F2]/50"
                   />
                 </div>
               </div>

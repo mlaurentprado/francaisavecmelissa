@@ -14,7 +14,7 @@ export interface TeacherSettings {
 }
 
 const STORAGE_KEYS = {
-  STUDENTS: 'fam_portal_students_v3',
+  STUDENTS: 'fam_portal_students_v4',
   WEEKS: 'fam_portal_weeks_v3',
   SESSION: 'fam_portal_session_v3',
   SCHEDULES: 'fam_portal_schedules_v1',
@@ -41,9 +41,11 @@ const INITIAL_STUDENTS: StudentProfile[] = [
     completedWeekIds: ['week-1'],
     registeredAt: '2026-08-15',
     payment: {
-      planName: 'Aulas VIP Individuais (1x/sem)',
+      planName: 'Aulas VIP Individuais (Pacote 4 Aulas)',
       amount: 480,
-      dueDay: 10,
+      billingCycleClasses: 4,
+      completedClassesInCycle: 1,
+      paymentDate: '2026-10-10',
       status: 'paid',
       lastPaymentDate: '2026-09-10',
     },
@@ -60,10 +62,12 @@ const INITIAL_STUDENTS: StudentProfile[] = [
     completedWeekIds: ['week-1', 'week-2'],
     registeredAt: '2026-07-10',
     payment: {
-      planName: 'Conversação Particular (2x/sem)',
+      planName: 'Conversação Particular (Pacote 4 Aulas)',
       amount: 650,
-      dueDay: 28,
-      status: 'pending',
+      billingCycleClasses: 4,
+      completedClassesInCycle: 3,
+      paymentDate: '2026-10-15',
+      status: 'paid',
     },
   },
   {
@@ -78,10 +82,12 @@ const INITIAL_STUDENTS: StudentProfile[] = [
     completedWeekIds: ['week-1'],
     registeredAt: '2026-06-02',
     payment: {
-      planName: 'Francês Profissional B1',
+      planName: 'Francês Profissional (Pacote 4 Aulas)',
       amount: 520,
-      dueDay: 5,
-      status: 'overdue',
+      billingCycleClasses: 4,
+      completedClassesInCycle: 4,
+      paymentDate: '2026-10-05',
+      status: 'pending',
     },
   },
 ];
@@ -244,29 +250,90 @@ class StudentPortalService {
   private currentSession: AuthSession = { currentUser: null, isTeacher: false };
 
   constructor() {
+    this.checkAndApplyUrlSync();
     this.loadFromStorage();
+    if (typeof window !== 'undefined') {
+      window.addEventListener('hashchange', () => {
+        const res = this.checkAndApplyUrlSync();
+        if (res.synced) {
+          window.location.reload();
+        }
+      });
+    }
   }
 
   private loadFromStorage() {
     if (typeof window === 'undefined') return;
 
     try {
-      const storedStudents = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-      if (storedStudents) {
-        const parsed: StudentProfile[] = JSON.parse(storedStudents);
-        this.students = parsed.map((s, idx) => ({
+      // 1. SCAN ALL POSSIBLE CANDIDATE KEYS FOR STUDENTS
+      const candidateKeys = [
+        'fam_portal_students_permanent',
+        STORAGE_KEYS.STUDENTS,
+        'fam_portal_students_v4',
+        'fam_portal_students_v3',
+        'fam_portal_students_v2',
+        'fam_portal_students_v1',
+        'fam_portal_students',
+        'fam_students',
+        'fam_portal_students_backup',
+        'fam_students_backup',
+      ];
+
+      // Dynamically check any other key in localStorage
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.toLowerCase().includes('student') || k.toLowerCase().includes('aluno')) && !candidateKeys.includes(k)) {
+          candidateKeys.push(k);
+        }
+      }
+
+      const allFoundStudents: StudentProfile[] = [];
+
+      for (const k of candidateKeys) {
+        const item = localStorage.getItem(k);
+        if (item) {
+          try {
+            const parsed = JSON.parse(item);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              for (const s of parsed) {
+                if (s && s.id && s.name) {
+                  const existingIdx = allFoundStudents.findIndex((x) => x.id === s.id);
+                  if (existingIdx === -1) {
+                    allFoundStudents.push(s);
+                  } else {
+                    allFoundStudents[existingIdx] = { ...s, ...allFoundStudents[existingIdx] };
+                  }
+                }
+              }
+            }
+          } catch (_) {
+            // Ignore corrupted JSON keys
+          }
+        }
+      }
+
+      if (allFoundStudents.length > 0) {
+        this.students = allFoundStudents.map((s, idx) => ({
           ...s,
           phone: s.phone || (idx === 0 ? '5511999991111' : idx === 1 ? '5511999992222' : '5511999993333'),
-          payment: s.payment || {
-            planName: 'Aulas VIP Individuais',
-            amount: 480,
-            dueDay: 10,
-            status: idx === 0 ? 'paid' : idx === 1 ? 'pending' : 'overdue',
+          payment: {
+            planName: s.payment?.planName || 'Aulas VIP Individuais (Pacote 4 Aulas)',
+            amount: s.payment?.amount || 480,
+            billingCycleClasses: s.payment?.billingCycleClasses ?? 4,
+            completedClassesInCycle: s.payment?.completedClassesInCycle ?? 0,
+            paymentDate: s.payment?.paymentDate || s.payment?.lastPaymentDate || '2026-10-10',
+            status: s.payment?.status || 'paid',
+            lastPaymentDate: s.payment?.lastPaymentDate,
+            pixKey: s.payment?.pixKey,
           },
         }));
       } else {
         this.students = INITIAL_STUDENTS;
       }
+
+      // Re-save immediately across all permanent and legacy keys to guarantee redundancy
+      this.saveStudents();
 
       const storedWeeks = localStorage.getItem(STORAGE_KEYS.WEEKS);
       if (storedWeeks) {
@@ -298,7 +365,9 @@ class StudentPortalService {
       }
     } catch (e) {
       console.error('Error loading portal storage', e);
-      this.students = INITIAL_STUDENTS;
+      if (this.students.length === 0) {
+        this.students = INITIAL_STUDENTS;
+      }
       this.weeks = INITIAL_WEEKS;
       this.schedules = INITIAL_SCHEDULES;
       this.settings = DEFAULT_SETTINGS;
@@ -306,7 +375,105 @@ class StudentPortalService {
   }
 
   private saveStudents() {
-    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(this.students));
+    if (typeof window === 'undefined') return;
+    const dataStr = JSON.stringify(this.students);
+    // Write to primary permanent key
+    localStorage.setItem(STORAGE_KEYS.STUDENTS, dataStr);
+    // Mirror to all legacy and backup keys so no version update ever loses students
+    localStorage.setItem('fam_portal_students_permanent', dataStr);
+    localStorage.setItem('fam_portal_students_v4', dataStr);
+    localStorage.setItem('fam_portal_students_v3', dataStr);
+    localStorage.setItem('fam_portal_students_v2', dataStr);
+    localStorage.setItem('fam_portal_students_backup', dataStr);
+    localStorage.setItem('fam_students_backup', dataStr);
+  }
+
+  public exportStudentsData(): string {
+    return JSON.stringify(this.students, null, 2);
+  }
+
+  public importStudentsData(jsonStr: string): { success: boolean; count?: number; message?: string } {
+    try {
+      const parsed = JSON.parse(jsonStr);
+      if (!Array.isArray(parsed)) {
+        return { success: false, message: 'Formato inválido. Os dados devem conter uma lista de alunos.' };
+      }
+      let count = 0;
+      for (const s of parsed) {
+        if (s && s.id && s.name) {
+          const idx = this.students.findIndex((x) => x.id === s.id);
+          if (idx >= 0) {
+            this.students[idx] = { ...this.students[idx], ...s };
+          } else {
+            this.students.push(s);
+          }
+          count++;
+        }
+      }
+      this.saveStudents();
+      return { success: true, count };
+    } catch (e: any) {
+      return { success: false, message: e.message || 'Erro ao processar dados de alunos.' };
+    }
+  }
+
+  public generateSyncUrl(): string {
+    if (typeof window === 'undefined') return '';
+    try {
+      const json = JSON.stringify(this.students);
+      // UTF-8 safe base64
+      const b64 = btoa(encodeURIComponent(json).replace(/%([0-9A-F]{2})/g, (_, p1) => String.fromCharCode(parseInt(p1, 16))));
+      const baseUrl = window.location.href.split('#')[0].split('?')[0];
+      return `${baseUrl}#sync=${encodeURIComponent(b64)}`;
+    } catch (e) {
+      console.error('Error generating sync url', e);
+      return '';
+    }
+  }
+
+  public getSyncWhatsAppUrl(teacherPhone?: string): string {
+    const syncUrl = this.generateSyncUrl();
+    const message = `🇫🇷 *Français avec Melissa - Sincronização de Alunos*\n\nAbra este link no seu celular para carregar todos os seus alunos cadastrados com segurança:\n\n${syncUrl}`;
+    const cleanPhone = (teacherPhone || this.settings.phone || '').replace(/\D/g, '');
+    const phoneParam = cleanPhone ? `phone=${cleanPhone}&` : '';
+    return `https://api.whatsapp.com/send?${phoneParam}text=${encodeURIComponent(message)}`;
+  }
+
+  public checkAndApplyUrlSync(): { synced: boolean; count?: number } {
+    if (typeof window === 'undefined') return { synced: false };
+    try {
+      let b64 = '';
+      if (window.location.hash && window.location.hash.includes('sync=')) {
+        const parts = window.location.hash.split('sync=');
+        b64 = decodeURIComponent(parts[1] || '');
+      } else if (window.location.search && window.location.search.includes('sync=')) {
+        const params = new URLSearchParams(window.location.search);
+        b64 = params.get('sync') || '';
+      }
+
+      if (b64) {
+        const decoded = decodeURIComponent(
+          Array.prototype.map
+            .call(atob(b64), (c: string) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+            .join('')
+        );
+        const res = this.importStudentsData(decoded);
+        if (res.success) {
+          // Auto login as teacher on sync
+          this.currentSession = { currentUser: null, isTeacher: true };
+          this.saveSession();
+
+          // Clean url hash/query without page reload
+          if (window.history && window.history.replaceState) {
+            window.history.replaceState(null, '', window.location.pathname);
+          }
+          return { synced: true, count: res.count };
+        }
+      }
+    } catch (e) {
+      console.warn('URL sync processing note:', e);
+    }
+    return { synced: false };
   }
 
   private saveWeeks() {
@@ -377,10 +544,11 @@ class StudentPortalService {
       completedWeekIds: [],
       registeredAt: new Date().toISOString().split('T')[0],
       payment: student.payment || {
-        planName: 'Aulas Particulares VIP',
+        planName: 'Aulas Particulares VIP (Pacote 4 Aulas)',
         amount: 480,
-        dueDay: 10,
-        status: 'pending',
+        billingCycleClasses: 4,
+        completedClassesInCycle: 0,
+        status: 'paid',
       },
     };
     this.students.push(newStudent);
@@ -407,17 +575,18 @@ class StudentPortalService {
     return true;
   }
 
-  // --- PAYMENTS MANAGEMENT ---
+  // --- PAYMENTS & CLASS CYCLE MANAGEMENT (A CADA 4 AULAS) ---
 
   public updateStudentPayment(studentId: string, paymentUpdates: Partial<StudentPaymentInfo>) {
     const student = this.students.find((s) => s.id === studentId);
     if (!student) return;
 
     const currentPayment: StudentPaymentInfo = student.payment || {
-      planName: 'Aulas Particulares VIP',
+      planName: 'Aulas Particulares VIP (Pacote 4 Aulas)',
       amount: 480,
-      dueDay: 10,
-      status: 'pending',
+      billingCycleClasses: 4,
+      completedClassesInCycle: 0,
+      status: 'paid',
     };
 
     const updatedPayment: StudentPaymentInfo = {
@@ -426,6 +595,84 @@ class StudentPortalService {
     };
 
     this.updateStudent(studentId, { payment: updatedPayment });
+  }
+
+  public incrementStudentClass(studentId: string): StudentProfile | undefined {
+    const student = this.students.find((s) => s.id === studentId);
+    if (!student) return undefined;
+
+    const currentPayment: StudentPaymentInfo = student.payment || {
+      planName: 'Aulas Particulares VIP (Pacote 4 Aulas)',
+      amount: 480,
+      billingCycleClasses: 4,
+      completedClassesInCycle: 0,
+      status: 'paid',
+    };
+
+    const totalClasses = currentPayment.billingCycleClasses || 4;
+    const nextCompleted = (currentPayment.completedClassesInCycle || 0) + 1;
+    // Se completou todas as aulas do pacote, o pagamento do próximo ciclo fica pendente
+    const nextStatus = nextCompleted >= totalClasses ? 'pending' : currentPayment.status;
+
+    const updatedPayment: StudentPaymentInfo = {
+      ...currentPayment,
+      completedClassesInCycle: nextCompleted,
+      status: nextStatus,
+    };
+
+    this.updateStudent(studentId, { payment: updatedPayment });
+    return this.students.find((s) => s.id === studentId);
+  }
+
+  public decrementStudentClass(studentId: string): StudentProfile | undefined {
+    const student = this.students.find((s) => s.id === studentId);
+    if (!student) return undefined;
+
+    const currentPayment: StudentPaymentInfo = student.payment || {
+      planName: 'Aulas Particulares VIP (Pacote 4 Aulas)',
+      amount: 480,
+      billingCycleClasses: 4,
+      completedClassesInCycle: 0,
+      status: 'paid',
+    };
+
+    const totalClasses = currentPayment.billingCycleClasses || 4;
+    const nextCompleted = Math.max(0, (currentPayment.completedClassesInCycle || 0) - 1);
+    const nextStatus = nextCompleted < totalClasses && currentPayment.status === 'pending'
+      ? 'paid'
+      : currentPayment.status;
+
+    const updatedPayment: StudentPaymentInfo = {
+      ...currentPayment,
+      completedClassesInCycle: nextCompleted,
+      status: nextStatus,
+    };
+
+    this.updateStudent(studentId, { payment: updatedPayment });
+    return this.students.find((s) => s.id === studentId);
+  }
+
+  public renewStudentCycle(studentId: string): StudentProfile | undefined {
+    const student = this.students.find((s) => s.id === studentId);
+    if (!student) return undefined;
+
+    const currentPayment: StudentPaymentInfo = student.payment || {
+      planName: 'Aulas Particulares VIP (Pacote 4 Aulas)',
+      amount: 480,
+      billingCycleClasses: 4,
+      completedClassesInCycle: 0,
+      status: 'paid',
+    };
+
+    const updatedPayment: StudentPaymentInfo = {
+      ...currentPayment,
+      completedClassesInCycle: 0,
+      status: 'paid',
+      lastPaymentDate: new Date().toISOString().split('T')[0],
+    };
+
+    this.updateStudent(studentId, { payment: updatedPayment });
+    return this.students.find((s) => s.id === studentId);
   }
 
   // --- SCHEDULES & RESCHEDULING ---
