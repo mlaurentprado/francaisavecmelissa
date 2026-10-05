@@ -152,7 +152,23 @@ export function App() {
         onLogout={handleLogout}
       />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 w-full space-y-12 sm:space-y-16 pb-16">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 w-full space-y-8 sm:space-y-12 pb-16">
+        {syncSuccessMsg && (
+          <div className="p-4 rounded-2xl bg-emerald-700 text-white shadow-lg flex items-center justify-between gap-3 text-xs sm:text-sm font-bold animate-in fade-in">
+            <div className="flex items-center gap-2.5">
+              <Sparkles className="w-5 h-5 text-amber-300 shrink-0" />
+              <span>{syncSuccessMsg}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSyncSuccessMsg(null)}
+              className="text-white/80 hover:text-white p-1 text-sm font-bold"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* VIEW 1: ESPAÇO DO ALUNO OU PAINEL DA PROFESSORA (QUANDO NA ABA PORTAL) */}
         {activeTab === 'portal' ? (
           <div className="pt-6 space-y-8">
