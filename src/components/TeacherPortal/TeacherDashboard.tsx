@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { WeeklyModule, StudentProfile, Level, ClassScheduleRecord, PaymentStatus } from '../../types';
+import { WeeklyModule, StudentProfile, Flashcard, Level, ClassScheduleRecord, PaymentStatus } from '../../types';
 import { studentPortalService, TeacherSettings } from '../../services/studentPortalService';
+import { flashcardService } from '../../services/flashcardService';
 import { getWhatsAppPaymentReminderUrl, getWhatsAppRescheduleUrl } from '../../services/whatsapp';
 import { WeekContentEditor } from './WeekContentEditor';
 import { StudentProgressPanel } from './StudentProgressPanel';
@@ -50,8 +51,23 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
 
   const [editingModule, setEditingModule] = useState<WeeklyModule | undefined>(undefined);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'weeks' | 'students' | 'financial'>('weeks');
+  const [activeTab, setActiveTab] = useState<'weeks' | 'students' | 'financial' | 'cards'>('weeks');
   const [studentFilter, setStudentFilter] = useState<string>('ALL');
+
+  // Flashcards criados pela professora (adicionar / editar / excluir)
+  const [flashcards, setFlashcards] = useState<Flashcard[]>(() => flashcardService.getCustomFlashcards());
+  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+  const [editingCard, setEditingCard] = useState<Flashcard | null>(null);
+  const [cardForm, setCardForm] = useState({
+    level: 'A1' as Level,
+    category: '',
+    french: '',
+    phonetic: '',
+    portuguese: '',
+    exampleFr: '',
+    examplePt: '',
+    tip: '',
+  });
 
   // Per-student progress panel (session history + accumulated points)
   const [progressStudent, setProgressStudent] = useState<StudentProfile | null>(null);
@@ -163,6 +179,60 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
       if (studentFilter === student.id) {
         setStudentFilter('ALL');
       }
+    }
+  };
+
+  // --- FLASHCARDS HANDLERS ---
+  const handleOpenCardModal = (card?: Flashcard) => {
+    if (card) {
+      setEditingCard(card);
+      setCardForm({
+        level: card.level,
+        category: card.category,
+        french: card.french,
+        phonetic: card.phonetic || '',
+        portuguese: card.portuguese,
+        exampleFr: card.exampleFr,
+        examplePt: card.examplePt,
+        tip: card.tip || '',
+      });
+    } else {
+      setEditingCard(null);
+      setCardForm({ level: 'A1', category: '', french: '', phonetic: '', portuguese: '', exampleFr: '', examplePt: '', tip: '' });
+    }
+    setIsCardModalOpen(true);
+  };
+
+  const handleSaveCard = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cardForm.french.trim() || !cardForm.portuguese.trim()) return;
+
+    const data = {
+      level: cardForm.level,
+      category: cardForm.category.trim() || 'Sem categoria',
+      french: cardForm.french.trim(),
+      phonetic: cardForm.phonetic.trim() || undefined,
+      portuguese: cardForm.portuguese.trim(),
+      exampleFr: cardForm.exampleFr.trim() || cardForm.french.trim(),
+      examplePt: cardForm.examplePt.trim() || cardForm.portuguese.trim(),
+      tip: cardForm.tip.trim() || undefined,
+    };
+
+    if (editingCard) {
+      flashcardService.updateFlashcard(editingCard.id, data);
+    } else {
+      flashcardService.addFlashcard(data);
+    }
+
+    setFlashcards(flashcardService.getCustomFlashcards());
+    setIsCardModalOpen(false);
+    setEditingCard(null);
+  };
+
+  const handleDeleteCard = (card: Flashcard) => {
+    if (confirm(`Excluir o flashcard "${card.french}"?`)) {
+      flashcardService.deleteFlashcard(card.id);
+      setFlashcards(flashcardService.getCustomFlashcards());
     }
   };
 
@@ -418,6 +488,19 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
 
           <button
             type="button"
+            onClick={() => setActiveTab('cards')}
+            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'cards'
+                ? 'bg-[#8B2626] text-white shadow-2xs'
+                : 'text-[#5A6578] hover:text-[#0F172A]'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Flashcards ({flashcards.length})</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab('financial')}
             className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
               activeTab === 'financial'
@@ -457,6 +540,17 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
             >
               <UserPlus className="w-4 h-4" />
               <span>+ Cadastrar Aluno</span>
+            </button>
+          )}
+
+          {activeTab === 'cards' && (
+            <button
+              type="button"
+              onClick={() => handleOpenCardModal()}
+              className="py-2.5 px-4 rounded-xl bg-[#8B2626] hover:bg-[#731E1E] text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              <span>+ Novo Flashcard</span>
             </button>
           )}
 
@@ -1090,6 +1184,84 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
         </div>
       )}
 
+      {/* TAB 4: MEUS FLASHCARDS */}
+      {activeTab === 'cards' && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FAF7F2] p-4 rounded-2xl border border-[#EBE4D8]">
+            <div className="space-y-0.5">
+              <h4 className="font-bold text-sm text-[#0F172A] flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#8B2626]" />
+                <span>Meus Flashcards ({flashcards.length})</span>
+              </h4>
+              <p className="text-xs text-[#5A6578]">
+                Registre novas expressões assim que tiver uma ideia. Elas aparecem na área de estudos junto com os flashcards fixos do programa, no nível que você escolher.
+              </p>
+            </div>
+          </div>
+
+          {flashcards.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-[#EBE4D8] p-8 text-center space-y-3">
+              <p className="text-sm text-[#5A6578]">
+                Você ainda não criou flashcards próprios. Os flashcards fixos do programa já estão disponíveis na área de estudos.
+              </p>
+              <button
+                type="button"
+                onClick={() => handleOpenCardModal()}
+                className="py-2.5 px-5 rounded-xl bg-[#8B2626] hover:bg-[#731E1E] text-white text-xs font-bold transition-all shadow-xs"
+              >
+                + Criar Meu Primeiro Flashcard
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {flashcards.map((card) => (
+                <div
+                  key={card.id}
+                  className="bg-white rounded-2xl border border-[#EBE4D8] p-5 shadow-2xs space-y-3 flex flex-col justify-between"
+                >
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#EFE8DC] text-[#63513D]">
+                        Nível {card.level}
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#FAF7F2] text-[#78644E] border border-[#DDD3C1]">
+                        {card.category}
+                      </span>
+                    </div>
+                    <h5 className="font-cormorant text-2xl font-bold text-[#0F172A] leading-tight">
+                      {card.french}
+                    </h5>
+                    {card.phonetic && (
+                      <p className="text-[11px] text-[#8C7A6B] font-mono">[{card.phonetic}]</p>
+                    )}
+                    <p className="text-xs font-semibold text-[#5A6578]">{card.portuguese}</p>
+                  </div>
+
+                  <div className="pt-2 border-t border-[#F2ECE3] flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenCardModal(card)}
+                      className="flex-1 py-2 px-3 rounded-xl border border-[#D4C8B8] hover:bg-[#FAF7F2] text-xs font-semibold text-[#8B2626] transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                      <span>Editar</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCard(card)}
+                      className="p-2 rounded-xl border border-rose-200 hover:bg-rose-50 text-rose-600 transition-colors shrink-0"
+                      title="Excluir flashcard"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Editor Modal de Aulas Semanais */}
       {isEditorOpen && (
         <WeekContentEditor
@@ -1235,6 +1407,155 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
                   className="py-2.5 px-5 rounded-xl bg-[#8B2626] text-white font-bold text-xs shadow-xs"
                 >
                   Salvar Aluno
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Novo / Editar Flashcard */}
+      {isCardModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl border border-[#EBE4D8] p-6 max-w-lg w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[#EBE4D8] pb-3">
+              <h4 className="font-cormorant text-2xl font-bold text-[#0F172A]">
+                {editingCard ? 'Editar Flashcard' : 'Novo Flashcard'}
+              </h4>
+              <button
+                type="button"
+                onClick={() => setIsCardModalOpen(false)}
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCard} className="space-y-3 text-left">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                    Nível :
+                  </label>
+                  <select
+                    value={cardForm.level}
+                    onChange={(e) => setCardForm({ ...cardForm, level: e.target.value as Level })}
+                    className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs font-bold bg-white"
+                  >
+                    <option value="A1">A1 — Iniciante</option>
+                    <option value="A2">A2 — Básico</option>
+                    <option value="B1">B1/B2 — Intermediário</option>
+                    <option value="C1">C1/C2 — Avançado</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                    Categoria :
+                  </label>
+                  <input
+                    type="text"
+                    value={cardForm.category}
+                    onChange={(e) => setCardForm({ ...cardForm, category: e.target.value })}
+                    placeholder="Ex: Rotina do dia"
+                    className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs font-bold bg-[#FAF7F2]/50"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                  Francês :
+                </label>
+                <input
+                  type="text"
+                  value={cardForm.french}
+                  onChange={(e) => setCardForm({ ...cardForm, french: e.target.value })}
+                  placeholder="Ex: On y va ?"
+                  className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs font-bold bg-[#FAF7F2]/50"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                  Fonética (opcional) :
+                </label>
+                <input
+                  type="text"
+                  value={cardForm.phonetic}
+                  onChange={(e) => setCardForm({ ...cardForm, phonetic: e.target.value })}
+                  placeholder="Ex: ɔ̃.ni.va"
+                  className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs bg-[#FAF7F2]/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                  Tradução (Português) :
+                </label>
+                <input
+                  type="text"
+                  value={cardForm.portuguese}
+                  onChange={(e) => setCardForm({ ...cardForm, portuguese: e.target.value })}
+                  placeholder="Ex: Vamos?"
+                  className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs font-bold bg-[#FAF7F2]/50"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                  Exemplo em Francês :
+                </label>
+                <textarea
+                  rows={2}
+                  value={cardForm.exampleFr}
+                  onChange={(e) => setCardForm({ ...cardForm, exampleFr: e.target.value })}
+                  placeholder="Ex: On y va ? Il est déjà tard !"
+                  className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs bg-[#FAF7F2]/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                  Exemplo em Português :
+                </label>
+                <textarea
+                  rows={2}
+                  value={cardForm.examplePt}
+                  onChange={(e) => setCardForm({ ...cardForm, examplePt: e.target.value })}
+                  placeholder="Ex: Vamos? Já está tarde!"
+                  className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs bg-[#FAF7F2]/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                  Dica da Melissa (opcional) :
+                </label>
+                <textarea
+                  rows={2}
+                  value={cardForm.tip}
+                  onChange={(e) => setCardForm({ ...cardForm, tip: e.target.value })}
+                  placeholder="Uma dica de pronúncia, uso ou cultura..."
+                  className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs bg-[#FAF7F2]/50"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#EBE4D8]">
+                <button
+                  type="button"
+                  onClick={() => setIsCardModalOpen(false)}
+                  className="py-2.5 px-4 rounded-xl border border-[#D4C8B8] text-xs font-semibold text-[#5A6578]"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="py-2.5 px-5 rounded-xl bg-[#8B2626] text-white font-bold text-xs shadow-xs"
+                >
+                  {editingCard ? 'Salvar Alterações' : 'Salvar Flashcard'}
                 </button>
               </div>
             </form>

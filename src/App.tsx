@@ -13,7 +13,8 @@ import { StudentLoginModal } from './components/StudentPortal/StudentLoginModal'
 import { StudentDashboard } from './components/StudentPortal/StudentDashboard';
 import { TeacherDashboard } from './components/TeacherPortal/TeacherDashboard';
 import { studentPortalService } from './services/studentPortalService';
-import { FLASHCARDS_DATA, QUIZ_DATA, DICTEE_DATA, FICHES_DATA } from './data/learningContent';
+import { flashcardService } from './services/flashcardService';
+import { QUIZ_DATA, DICTEE_DATA, FICHES_DATA } from './data/learningContent';
 import { Heart, Smartphone, GraduationCap, ArrowRight, Sparkles } from 'lucide-react';
 
 export function App() {
@@ -132,7 +133,8 @@ export function App() {
   };
 
   // Filter content by selected level
-  const currentCards = FLASHCARDS_DATA.filter((c) => c.level === currentLevel);
+  const allFlashcards = flashcardService.getFlashcards();
+  const currentCards = allFlashcards.filter((c) => c.level === currentLevel);
   const currentQuizzes = QUIZ_DATA.filter((q) => q.level === currentLevel);
   const currentDictees = DICTEE_DATA.filter((d) => d.level === currentLevel);
 
@@ -313,7 +315,7 @@ export function App() {
 
                 {activeTab === 'revisions' && (
                   <RevisionsView
-                    cards={FLASHCARDS_DATA}
+                    cards={allFlashcards}
                     reviewCardIds={reviewCards}
                     currentLevel={currentLevel}
                     onMarkKnown={handleMarkKnown}
