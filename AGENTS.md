@@ -39,6 +39,11 @@ sessions, points, teacher settings) lives in `localStorage`, seeded from mocks i
   code. `sw.js` calls `skipWaiting()` and the page reloads itself on `controllerchange`, which is what
   makes an already-installed phone app pick up a new version automatically; never remove `skipWaiting`
   or the `controllerchange` reload without providing another update path.
+- **Teacher-created content** uses the same symmetric read/write pattern as students:
+  `flashcardService` (`fam_teacher_flashcards_v1`) and `quizService` (`fam_teacher_quizzes_v1`)
+  store teacher-authored items in localStorage and merge them with the fixed program data
+  (`FLASHCARDS_DATA` / `QUIZ_DATA`) for the student views. CRUD UI lives in the
+  `TeacherDashboard` (flashcards) and `TeacherQuizManager` (quizzes).
 - **Gemini API key is optional**: `src/services/geminiService.ts` reads the key from `localStorage`
   first, then `VITE_GEMINI_API_KEY` (baked by Vite from the container env at dev-server start).
   Without a key, `WeekContentEditor` falls back to `lessonGeneratorService` (deterministic
