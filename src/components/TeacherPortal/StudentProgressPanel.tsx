@@ -1,5 +1,6 @@
 import React from 'react';
 import { WeeklyModule, StudentProfile, ClassScheduleRecord } from '../../types';
+import { StudentActivityHistory } from './StudentActivityHistory';
 import {
   X,
   Trophy,
@@ -207,6 +208,9 @@ export const StudentProgressPanel: React.FC<StudentProgressPanelProps> = ({
               </div>
             </div>
           )}
+
+          {/* Pontuação em quizzes & exercícios (histórico por aluno) */}
+          <StudentActivityHistory records={student.activityLog || []} />
 
           {/* Histórico de sessões */}
           <div className="space-y-3">

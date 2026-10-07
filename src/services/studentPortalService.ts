@@ -5,6 +5,7 @@ import {
   Level,
   StudentPaymentInfo,
   ClassScheduleRecord,
+  StudentActivityRecord,
 } from '../types';
 
 export interface TeacherSettings {
@@ -774,6 +775,20 @@ class StudentPortalService {
   }
 
   // --- PROGRESS & GAMIFICATION ---
+
+  /** Registra um exercício realizado pelo aluno (quiz, dictée ou flashcard) no histórico dele. */
+  public recordStudentActivity(studentId: string, entry: Omit<StudentActivityRecord, 'id' | 'at'>) {
+    const student = this.students.find((s) => s.id === studentId);
+    if (!student) return;
+
+    const record: StudentActivityRecord = {
+      ...entry,
+      id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      at: new Date().toISOString(),
+    };
+    const log = [record, ...(student.activityLog || [])].slice(0, 50);
+    this.updateStudent(studentId, { activityLog: log });
+  }
 
   public completeWeekLesson(studentId: string, weekId: string, pointsEarned: number) {
     const student = this.students.find((s) => s.id === studentId);

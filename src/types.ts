@@ -60,6 +60,18 @@ export interface FicheGrammaire {
   melissaAdvice: string;
 }
 
+export type ActivityType = 'quiz' | 'dictee' | 'flashcards';
+
+export interface StudentActivityRecord {
+  id: string;
+  type: ActivityType;
+  title: string;
+  score?: number; // acertos (quizzes)
+  total?: number; // total de perguntas (quizzes)
+  points: number; // pontos ganhos na atividade
+  at: string; // ISO date
+}
+
 export interface StudentProgress {
   name: string;
   level: Level;
@@ -108,6 +120,7 @@ export interface StudentProfile {
   streakDays: number;
   completedWeekIds: string[];
   registeredAt: string;
+  activityLog?: StudentActivityRecord[];
   payment?: StudentPaymentInfo;
 }
 

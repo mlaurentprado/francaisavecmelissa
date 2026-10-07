@@ -88,6 +88,13 @@ export function App() {
       setKnownCards((prev) => [...prev, cardId]);
       setReviewCards((prev) => prev.filter((id) => id !== cardId));
       setTotalPoints((prev) => prev + 15);
+      if (session.currentUser) {
+        studentPortalService.recordStudentActivity(session.currentUser.id, {
+          type: 'flashcards',
+          title: 'Flashcard dominado',
+          points: 15,
+        });
+      }
     }
   };
 
@@ -98,14 +105,30 @@ export function App() {
     }
   };
 
-  const handleQuizComplete = (score: number) => {
+  const handleQuizComplete = (score: number, total?: number) => {
     const earned = score * 25;
     setTotalPoints((prev) => prev + earned);
+    if (session.currentUser) {
+      studentPortalService.recordStudentActivity(session.currentUser.id, {
+        type: 'quiz',
+        title: 'Quiz de fixação',
+        score,
+        total,
+        points: earned,
+      });
+    }
   };
 
   const handleCompleteDictee = (_id: string, correct: boolean) => {
     if (correct) {
       setTotalPoints((prev) => prev + 25);
+      if (session.currentUser) {
+        studentPortalService.recordStudentActivity(session.currentUser.id, {
+          type: 'dictee',
+          title: 'Dictée concluída',
+          points: 25,
+        });
+      }
     }
   };
 
