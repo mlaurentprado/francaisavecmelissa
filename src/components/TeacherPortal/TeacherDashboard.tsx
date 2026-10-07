@@ -53,6 +53,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
 
   const [editingModule, setEditingModule] = useState<WeeklyModule | undefined>(undefined);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [editorStudentId, setEditorStudentId] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<'weeks' | 'students' | 'financial' | 'cards' | 'quizzes'>('weeks');
 
   // Quizzes criados pela professora (contador da aba; o CRUD vive em TeacherQuizManager)
@@ -132,6 +133,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
     setWeeks(studentPortalService.getWeeklyModules());
     setIsEditorOpen(false);
     setEditingModule(undefined);
+    setEditorStudentId(undefined);
   };
 
   const handleDeleteWeek = (id: string) => {
@@ -541,6 +543,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
               type="button"
               onClick={() => {
                 setEditingModule(undefined);
+                setEditorStudentId(studentFilter === 'ALL' ? undefined : studentFilter);
                 setIsEditorOpen(true);
               }}
               className="py-2.5 px-4 rounded-xl bg-[#8B2626] hover:bg-[#731E1E] text-white font-bold text-xs shadow-xs transition-all flex items-center gap-1.5"
@@ -634,6 +637,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
                 type="button"
                 onClick={() => {
                   setEditingModule(undefined);
+                  setEditorStudentId(studentFilter === 'ALL' ? undefined : studentFilter);
                   setIsEditorOpen(true);
                 }}
                 className="py-2.5 px-5 rounded-xl bg-[#8B2626] hover:bg-[#731E1E] text-white text-xs font-bold transition-all shadow-xs"
@@ -820,6 +824,19 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
                     >
                       <Layers className="w-3.5 h-3.5" />
                       <span>Aulas ({weeks.filter((w) => w.studentId === student.id || w.studentId === 'ALL').length})</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingModule(undefined);
+                        setEditorStudentId(student.id);
+                        setIsEditorOpen(true);
+                      }}
+                      className="p-2 rounded-xl bg-[#FAF7F2] border border-[#D4C8B8] hover:bg-[#F4EFE6] text-[#8B2626] transition-colors shrink-0"
+                      title={`Nova aula (resumo semanal) para ${student.name}`}
+                    >
+                      <Plus className="w-4 h-4" />
                     </button>
 
                     <button
@@ -1289,10 +1306,12 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
       {isEditorOpen && (
         <WeekContentEditor
           initialModule={editingModule}
+          presetStudentId={editorStudentId}
           onSave={handleSaveWeek}
           onCancel={() => {
             setIsEditorOpen(false);
             setEditingModule(undefined);
+            setEditorStudentId(undefined);
           }}
         />
       )}
