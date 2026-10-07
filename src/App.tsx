@@ -6,6 +6,7 @@ import { LevelsSection } from './components/LevelsSection';
 import { FlashcardsView } from './components/FlashcardsView';
 import { QuizView } from './components/QuizView';
 import { DicteeView } from './components/DicteeView';
+import { OralView } from './components/OralView';
 import { FichesView } from './components/FichesView';
 import { RevisionsView } from './components/RevisionsView';
 import { InstallModal } from './components/InstallModal';
@@ -32,6 +33,7 @@ export function App() {
   });
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [dicteeMode, setDicteeMode] = useState<'dictee' | 'oral'>('dictee');
   const [syncSuccessMsg, setSyncSuccessMsg] = useState<string | null>(null);
 
   // Portal session
@@ -280,7 +282,7 @@ export function App() {
                   <h2 className="font-cormorant text-2xl sm:text-3xl font-bold text-[#0F172A]">
                     {activeTab === 'flashcards' && 'Flashcards & Pronúncia Nativa'}
                     {activeTab === 'quiz' && 'Exercícios & Fixação Pedagógica'}
-                    {activeTab === 'dictee' && 'Laboratório de Escuta & Dictée'}
+                    {activeTab === 'dictee' && "Dictée & Entraînement à l'oral"}
                     {activeTab === 'fiches' && 'Fiches Mémo da Professora'}
                     {activeTab === 'revisions' && 'Meu Plano de Revisão Personalizado'}
                   </h2>
@@ -326,11 +328,47 @@ export function App() {
                 )}
 
                 {activeTab === 'dictee' && (
-                  <DicteeView
-                    items={currentDictees}
-                    currentLevel={currentLevel}
-                    onCompleteDictee={handleCompleteDictee}
-                  />
+                  <div className="space-y-6">
+                    <div className="flex justify-center">
+                      <div className="flex bg-white p-1 rounded-xl border border-[#EBE4D8] text-xs font-semibold shadow-2xs">
+                        <button
+                          type="button"
+                          onClick={() => setDicteeMode('dictee')}
+                          className={`px-4 py-1.5 rounded-lg transition-all ${
+                            dicteeMode === 'dictee'
+                              ? 'bg-[#8B2626] text-white shadow-2xs'
+                              : 'text-[#5A6578] hover:text-[#0F172A]'
+                          }`}
+                        >
+                          Dictée (escrita)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDicteeMode('oral')}
+                          className={`px-4 py-1.5 rounded-lg transition-all ${
+                            dicteeMode === 'oral'
+                              ? 'bg-[#8B2626] text-white shadow-2xs'
+                              : 'text-[#5A6578] hover:text-[#0F172A]'
+                          }`}
+                        >
+                          Entraînement à l'oral
+                        </button>
+                      </div>
+                    </div>
+
+                    {dicteeMode === 'dictee' ? (
+                      <DicteeView
+                        items={currentDictees}
+                        currentLevel={currentLevel}
+                        onCompleteDictee={handleCompleteDictee}
+                      />
+                    ) : (
+                      <OralView
+                        items={currentDictees}
+                        currentLevel={currentLevel}
+                      />
+                    )}
+                  </div>
                 )}
 
                 {activeTab === 'fiches' && (
