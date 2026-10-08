@@ -171,15 +171,19 @@ export function App() {
   const knownQuizIds = new Set(allQuizzes.map((q) => q.id));
   const allCardsWithModules = [
     ...allFlashcards,
-    ...moduleFlashcards.filter(
-      (c) => c.french.trim() !== '' && c.portuguese.trim() !== '' && !knownFlashcardIds.has(c.id)
-    ),
+    ...moduleFlashcards
+      .filter(
+        (c) => c.french.trim() !== '' && c.portuguese.trim() !== '' && !knownFlashcardIds.has(c.id)
+      )
+      .map((c) => ({ ...c, fromModule: true })),
   ];
   const allQuizzesWithModules = [
     ...allQuizzes,
-    ...moduleQuizzes.filter(
-      (q) => q.question.trim() !== '' && q.options.some((o) => o.trim() !== '') && !knownQuizIds.has(q.id)
-    ),
+    ...moduleQuizzes
+      .filter(
+        (q) => q.question.trim() !== '' && q.options.some((o) => o.trim() !== '') && !knownQuizIds.has(q.id)
+      )
+      .map((q) => ({ ...q, fromModule: true })),
   ];
   const currentCards = allCardsWithModules.filter((c) => c.level === currentLevel);
   const currentQuizzes = allQuizzesWithModules.filter((q) => q.level === currentLevel);
@@ -189,9 +193,11 @@ export function App() {
   const moduleDictees = weeklyModules.flatMap((m) => m.lessons?.dictees ?? []);
   const currentDictees = [
     ...allDictees,
-    ...moduleDictees.filter(
-      (d) => d.sentence.trim() !== '' && d.translation.trim() !== '' && !knownDicteeIds.has(d.id)
-    ),
+    ...moduleDictees
+      .filter(
+        (d) => d.sentence.trim() !== '' && d.translation.trim() !== '' && !knownDicteeIds.has(d.id)
+      )
+      .map((d) => ({ ...d, fromModule: true })),
   ].filter((d) => d.level === currentLevel);
 
   return (

@@ -23,6 +23,7 @@ export interface Flashcard {
   exampleFr: string;
   examplePt: string;
   tip?: string;
+  fromModule?: boolean;
 }
 
 export interface QuizQuestion {
@@ -36,6 +37,7 @@ export interface QuizQuestion {
   correctIndex: number;
   explanation: string;
   melissaTip?: string;
+  fromModule?: boolean;
 }
 
 export interface DicteeItem {
@@ -45,6 +47,7 @@ export interface DicteeItem {
   translation: string;
   hint: string;
   difficulty: 'facile' | 'moyen' | 'avance';
+  fromModule?: boolean;
 }
 
 export interface FicheGrammaire {

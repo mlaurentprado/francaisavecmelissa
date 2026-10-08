@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { speechService } from '../services/speech';
 import { getWhatsAppQuestionUrl } from '../services/whatsapp';
+import { ModuleBadge } from './ModuleBadge';
 
 interface DicteeViewProps {
   items: DicteeItem[];
@@ -96,6 +97,7 @@ export const DicteeView: React.FC<DicteeViewProps> = ({
           <span className="uppercase tracking-wide">Nível {currentLevel}</span>
           <span>•</span>
           <span className="text-[#0F172A]">Ditado {currentIndex + 1} de {items.length}</span>
+          {currentItem.fromModule && <ModuleBadge />}
         </div>
         <span className="px-3 py-1 rounded-full bg-[#F4EFE6] text-[#78644E] text-xs font-semibold capitalize border border-[#DDD3C1]">
           {currentItem.difficulty}

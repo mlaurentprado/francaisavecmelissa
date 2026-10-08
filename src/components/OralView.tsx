@@ -10,6 +10,7 @@ import {
 import { speechService } from '../services/speech';
 import { speechRecognitionService, PronunciationResult } from '../services/speechRecognition';
 import { getWhatsAppQuestionUrl } from '../services/whatsapp';
+import { ModuleBadge } from './ModuleBadge';
 import confetti from 'canvas-confetti';
 
 interface OralViewProps {
@@ -86,6 +87,7 @@ export const OralView: React.FC<OralViewProps> = ({
           <span className="uppercase tracking-wide">Nível {currentLevel}</span>
           <span>•</span>
           <span className="text-[#0F172A]">Frase {currentIndex + 1} de {items.length}</span>
+          {currentItem.fromModule && <ModuleBadge />}
         </div>
         <span className="px-3 py-1 rounded-full bg-[#F4EFE6] text-[#78644E] text-xs font-semibold capitalize border border-[#DDD3C1]">
           {currentItem.difficulty}
