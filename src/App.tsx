@@ -160,8 +160,28 @@ export function App() {
 
   // Filter content by selected level
   const allFlashcards = flashcardService.getFlashcards();
-  const currentCards = allFlashcards.filter((c) => c.level === currentLevel);
-  const currentQuizzes = quizService.getQuizzes().filter((q) => q.level === currentLevel);
+  const allQuizzes = quizService.getQuizzes();
+  // Reuse the flashcards/quizzes authored inside the students' weekly modules
+  // (visible to non-student users too, grouped by the module's level).
+  const weeklyModules = studentPortalService.getWeeklyModules();
+  const moduleFlashcards = weeklyModules.flatMap((m) => m.lessons?.flashcards ?? []);
+  const moduleQuizzes = weeklyModules.flatMap((m) => m.lessons?.quizzes ?? []);
+  const knownFlashcardIds = new Set(allFlashcards.map((c) => c.id));
+  const knownQuizIds = new Set(allQuizzes.map((q) => q.id));
+  const allCardsWithModules = [
+    ...allFlashcards,
+    ...moduleFlashcards.filter(
+      (c) => c.french.trim() !== '' && c.portuguese.trim() !== '' && !knownFlashcardIds.has(c.id)
+    ),
+  ];
+  const allQuizzesWithModules = [
+    ...allQuizzes,
+    ...moduleQuizzes.filter(
+      (q) => q.question.trim() !== '' && q.options.some((o) => o.trim() !== '') && !knownQuizIds.has(q.id)
+    ),
+  ];
+  const currentCards = allCardsWithModules.filter((c) => c.level === currentLevel);
+  const currentQuizzes = allQuizzesWithModules.filter((q) => q.level === currentLevel);
   const currentDictees = DICTEE_DATA.filter((d) => d.level === currentLevel);
 
   return (
@@ -377,7 +397,7 @@ export function App() {
 
                 {activeTab === 'revisions' && (
                   <RevisionsView
-                    cards={allFlashcards}
+                    cards={allCardsWithModules}
                     reviewCardIds={reviewCards}
                     currentLevel={currentLevel}
                     onMarkKnown={handleMarkKnown}
