@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { WeeklyModule, StudentProfile, Flashcard, QuizQuestion, Level, ClassScheduleRecord, PaymentStatus } from '../../types';
+import { WeeklyModule, StudentProfile, Flashcard, QuizQuestion, DicteeItem, Level, ClassScheduleRecord, PaymentStatus } from '../../types';
 import { studentPortalService, TeacherSettings } from '../../services/studentPortalService';
 import { flashcardService } from '../../services/flashcardService';
 import { getWhatsAppPaymentReminderUrl, getWhatsAppRescheduleUrl } from '../../services/whatsapp';
 import { quizService } from '../../services/quizService';
+import { dicteeService } from '../../services/dicteeService';
 import { WeekContentEditor } from './WeekContentEditor';
 import { StudentProgressPanel } from './StudentProgressPanel';
 import { TeacherQuizManager } from './TeacherQuizManager';
+import { TeacherDicteeManager } from './TeacherDicteeManager';
 import {
   GraduationCap,
   Plus,
@@ -54,10 +56,12 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
   const [editingModule, setEditingModule] = useState<WeeklyModule | undefined>(undefined);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editorStudentId, setEditorStudentId] = useState<string | undefined>(undefined);
-  const [activeTab, setActiveTab] = useState<'weeks' | 'students' | 'financial' | 'cards' | 'quizzes'>('weeks');
+  const [activeTab, setActiveTab] = useState<'weeks' | 'students' | 'financial' | 'cards' | 'quizzes' | 'dictees'>('weeks');
 
   // Quizzes criados pela professora (contador da aba; o CRUD vive em TeacherQuizManager)
   const [customQuizzes, setCustomQuizzes] = useState<QuizQuestion[]>(() => quizService.getCustomQuizzes());
+  // Dictées criadas pela professora (contador da aba; o CRUD vive em TeacherDicteeManager)
+  const [customDictees, setCustomDictees] = useState<DicteeItem[]>(() => dicteeService.getCustomDictees());
   const [studentFilter, setStudentFilter] = useState<string>('ALL');
 
   // Flashcards criados pela professora (adicionar / editar / excluir)
@@ -517,6 +521,19 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>Quizzes ({customQuizzes.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('dictees')}
+            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'dictees'
+                ? 'bg-[#8B2626] text-white shadow-2xs'
+                : 'text-[#5A6578] hover:text-[#0F172A]'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Dictées ({customDictees.length})</span>
           </button>
 
           <button
@@ -1300,6 +1317,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
       {/* TAB 5: MEUS QUIZZES */}
       {activeTab === 'quizzes' && (
         <TeacherQuizManager onChange={setCustomQuizzes} />
+      )}
+
+      {activeTab === 'dictees' && (
+        <TeacherDicteeManager onChange={setCustomDictees} />
       )}
 
       {/* Editor Modal de Aulas Semanais */}

@@ -15,7 +15,8 @@ import { StudentDashboard } from './components/StudentPortal/StudentDashboard';
 import { TeacherDashboard } from './components/TeacherPortal/TeacherDashboard';
 import { studentPortalService } from './services/studentPortalService';
 import { flashcardService } from './services/flashcardService';
-import { DICTEE_DATA, FICHES_DATA } from './data/learningContent';
+import { FICHES_DATA } from './data/learningContent';
+import { dicteeService } from './services/dicteeService';
 import { quizService } from './services/quizService';
 import { Heart, Smartphone, GraduationCap, ArrowRight, Sparkles } from 'lucide-react';
 
@@ -182,7 +183,16 @@ export function App() {
   ];
   const currentCards = allCardsWithModules.filter((c) => c.level === currentLevel);
   const currentQuizzes = allQuizzesWithModules.filter((q) => q.level === currentLevel);
-  const currentDictees = DICTEE_DATA.filter((d) => d.level === currentLevel);
+  // Same for dictées: fixed program + teacher's own + module lesson dictées.
+  const allDictees = dicteeService.getDictees();
+  const knownDicteeIds = new Set(allDictees.map((d) => d.id));
+  const moduleDictees = weeklyModules.flatMap((m) => m.lessons?.dictees ?? []);
+  const currentDictees = [
+    ...allDictees,
+    ...moduleDictees.filter(
+      (d) => d.sentence.trim() !== '' && d.translation.trim() !== '' && !knownDicteeIds.has(d.id)
+    ),
+  ].filter((d) => d.level === currentLevel);
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] text-[#0F172A] flex flex-col selection:bg-[#8B2626]/10 selection:text-[#8B2626]">
