@@ -28,16 +28,5 @@
   <body class="bg-[#FAF7F2] text-[#0F172A] antialiased selection:bg-[#8B2626]/10 selection:text-[#8B2626] min-h-screen">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-
-    <!-- Register Service Worker -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch((err) => {
-            console.log('SW registration note:', err);
-          });
-        });
-      }
-    </script>
   </body>
 </html>

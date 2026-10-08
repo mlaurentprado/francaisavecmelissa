@@ -1,0 +1,32 @@
+services:
+  web:
+    image: oven/bun:1
+    working_dir: /app
+    restart: on-failure
+    # /run/base44/app.env is platform-managed (outside the repo) and must stay LAST
+    # so user-supplied secrets override any defaults.
+    env_file:
+      - /run/base44/app.env
+    environment:
+      # Passed through from the sandbox env; Vite >= 6.1 appends it to allowedHosts
+      # and accepts the preview proxy host. The app also enables allowedHosts in
+      # vite.config.ts, so this is a belt-and-suspenders for dev asset/HMR requests.
+      - __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+    command:
+      - sh
+      - -ec
+      - bun install --frozen-lockfile && exec bun run dev -- --host 0.0.0.0 --port 3000
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s

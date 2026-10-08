@@ -5,6 +5,7 @@ import {
   Level,
   StudentPaymentInfo,
   ClassScheduleRecord,
+  StudentActivityRecord,
 } from '../types';
 
 export interface TeacherSettings {
@@ -20,6 +21,22 @@ const STORAGE_KEYS = {
   SCHEDULES: 'fam_portal_schedules_v1',
   SETTINGS: 'fam_portal_settings_v1',
 };
+
+// Keys we read AND write in lockstep. Saving always overwrites every one of them,
+// so a student the teacher deletes can never be restored from a stale copy.
+const STUDENT_STORAGE_KEYS = ['fam_portal_students_permanent', 'fam_portal_students_v4'];
+
+// Keys written by older app versions. They are read once to migrate existing data,
+// then removed by saveStudents() so they can't resurrect students that were deleted.
+const LEGACY_STUDENT_STORAGE_KEYS = [
+  'fam_portal_students_v3',
+  'fam_portal_students_v2',
+  'fam_portal_students_v1',
+  'fam_portal_students',
+  'fam_students',
+  'fam_portal_students_backup',
+  'fam_students_backup',
+];
 
 const DEFAULT_SETTINGS: TeacherSettings = {
   pixKey: 'melissa.prado@exemplo.com',
@@ -266,126 +283,132 @@ class StudentPortalService {
     if (typeof window === 'undefined') return;
 
     try {
-      // 1. SCAN ALL POSSIBLE CANDIDATE KEYS FOR STUDENTS
-      const candidateKeys = [
-        'fam_portal_students_permanent',
-        STORAGE_KEYS.STUDENTS,
-        'fam_portal_students_v4',
-        'fam_portal_students_v3',
-        'fam_portal_students_v2',
-        'fam_portal_students_v1',
-        'fam_portal_students',
-        'fam_students',
-        'fam_portal_students_backup',
-        'fam_students_backup',
-      ];
+      // Students live in the canonical keys and are written back to those same keys.
+      // An existing key is authoritative — even an empty list, which means the teacher
+      // removed every student and must NOT fall back to the demo students.
+      let storedStudents: StudentProfile[] | null = null;
 
-      // Dynamically check any other key in localStorage
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && (k.toLowerCase().includes('student') || k.toLowerCase().includes('aluno')) && !candidateKeys.includes(k)) {
-          candidateKeys.push(k);
+      for (const k of STUDENT_STORAGE_KEYS) {
+        const item = localStorage.getItem(k);
+        if (!item) continue;
+        try {
+          const parsed = JSON.parse(item);
+          if (Array.isArray(parsed)) {
+            storedStudents = parsed.filter((s) => s && s.id && s.name);
+            break;
+          }
+        } catch (_) {
+          // Ignore corrupted JSON and try the next candidate key
         }
       }
 
-      const allFoundStudents: StudentProfile[] = [];
-
-      for (const k of candidateKeys) {
-        const item = localStorage.getItem(k);
-        if (item) {
+      // No canonical data yet: migrate once from an older version's key, if it has students.
+      if (storedStudents === null) {
+        for (const k of LEGACY_STUDENT_STORAGE_KEYS) {
+          const item = localStorage.getItem(k);
+          if (!item) continue;
           try {
             const parsed = JSON.parse(item);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              for (const s of parsed) {
-                if (s && s.id && s.name) {
-                  const existingIdx = allFoundStudents.findIndex((x) => x.id === s.id);
-                  if (existingIdx === -1) {
-                    allFoundStudents.push(s);
-                  } else {
-                    allFoundStudents[existingIdx] = { ...s, ...allFoundStudents[existingIdx] };
-                  }
-                }
-              }
+              storedStudents = parsed.filter((s) => s && s.id && s.name);
+              break;
             }
           } catch (_) {
-            // Ignore corrupted JSON keys
+            // Ignore corrupted JSON
           }
         }
       }
 
-      if (allFoundStudents.length > 0) {
-        this.students = allFoundStudents.map((s, idx) => ({
-          ...s,
-          phone: s.phone || (idx === 0 ? '5511999991111' : idx === 1 ? '5511999992222' : '5511999993333'),
-          payment: {
-            planName: s.payment?.planName || 'Aulas VIP Individuais (Pacote 4 Aulas)',
-            amount: s.payment?.amount || 480,
-            billingCycleClasses: s.payment?.billingCycleClasses ?? 4,
-            completedClassesInCycle: s.payment?.completedClassesInCycle ?? 0,
-            paymentDate: s.payment?.paymentDate || s.payment?.lastPaymentDate || '2026-10-10',
-            status: s.payment?.status || 'paid',
-            lastPaymentDate: s.payment?.lastPaymentDate,
-            pixKey: s.payment?.pixKey,
-          },
-        }));
-      } else {
-        this.students = INITIAL_STUDENTS;
-      }
+      this.students =
+        storedStudents === null
+          ? INITIAL_STUDENTS
+          : storedStudents.map((s, idx) => ({
+              ...s,
+              phone: s.phone || (idx === 0 ? '5511999991111' : idx === 1 ? '5511999992222' : '5511999993333'),
+              payment: {
+                planName: s.payment?.planName || 'Aulas VIP Individuais (Pacote 4 Aulas)',
+                amount: s.payment?.amount || 480,
+                billingCycleClasses: s.payment?.billingCycleClasses ?? 4,
+                completedClassesInCycle: s.payment?.completedClassesInCycle ?? 0,
+                paymentDate: s.payment?.paymentDate || s.payment?.lastPaymentDate || '2026-10-10',
+                status: s.payment?.status || 'paid',
+                lastPaymentDate: s.payment?.lastPaymentDate,
+                pixKey: s.payment?.pixKey,
+              },
+            }));
 
-      // Re-save immediately across all permanent and legacy keys to guarantee redundancy
+      // Persist to the canonical keys and drop stale legacy mirrors.
       this.saveStudents();
 
       const storedWeeks = localStorage.getItem(STORAGE_KEYS.WEEKS);
       if (storedWeeks) {
-        const parsedWeeks: WeeklyModule[] = JSON.parse(storedWeeks);
-        this.weeks = parsedWeeks.map((w, idx) => ({
-          ...w,
-          studentId: w.studentId || (idx === 0 ? 'std-1' : idx === 1 ? 'std-2' : 'ALL'),
-          studentName:
-            w.studentName ||
-            (w.studentId === 'std-1'
-              ? 'Lucas Mendes'
-              : w.studentId === 'std-2'
-              ? 'Juliana Castro'
-              : 'Todos os Alunos'),
-        }));
+        try {
+          const parsedWeeks: WeeklyModule[] = JSON.parse(storedWeeks);
+          this.weeks = parsedWeeks.map((w, idx) => ({
+            ...w,
+            studentId: w.studentId || (idx === 0 ? 'std-1' : idx === 1 ? 'std-2' : 'ALL'),
+            studentName:
+              w.studentName ||
+              (w.studentId === 'std-1'
+                ? 'Lucas Mendes'
+                : w.studentId === 'std-2'
+                ? 'Juliana Castro'
+                : 'Todos os Alunos'),
+          }));
+        } catch (_) {
+          this.weeks = INITIAL_WEEKS;
+        }
       } else {
         this.weeks = INITIAL_WEEKS;
       }
 
       const storedSchedules = localStorage.getItem(STORAGE_KEYS.SCHEDULES);
-      this.schedules = storedSchedules ? JSON.parse(storedSchedules) : INITIAL_SCHEDULES;
+      if (storedSchedules) {
+        try {
+          this.schedules = JSON.parse(storedSchedules);
+        } catch (_) {
+          this.schedules = INITIAL_SCHEDULES;
+        }
+      } else {
+        this.schedules = INITIAL_SCHEDULES;
+      }
 
       const storedSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-      this.settings = storedSettings ? JSON.parse(storedSettings) : DEFAULT_SETTINGS;
+      if (storedSettings) {
+        try {
+          this.settings = JSON.parse(storedSettings);
+        } catch (_) {
+          this.settings = DEFAULT_SETTINGS;
+        }
+      } else {
+        this.settings = DEFAULT_SETTINGS;
+      }
 
       const storedSession = localStorage.getItem(STORAGE_KEYS.SESSION);
       if (storedSession) {
-        this.currentSession = JSON.parse(storedSession);
+        try {
+          this.currentSession = JSON.parse(storedSession);
+        } catch (_) {
+          // Keep the default (logged-out) session
+        }
       }
     } catch (e) {
+      // Students were already resolved above; never wipe them from here.
       console.error('Error loading portal storage', e);
-      if (this.students.length === 0) {
-        this.students = INITIAL_STUDENTS;
-      }
-      this.weeks = INITIAL_WEEKS;
-      this.schedules = INITIAL_SCHEDULES;
-      this.settings = DEFAULT_SETTINGS;
     }
   }
 
   private saveStudents() {
     if (typeof window === 'undefined') return;
     const dataStr = JSON.stringify(this.students);
-    // Write to primary permanent key
-    localStorage.setItem(STORAGE_KEYS.STUDENTS, dataStr);
-    // Mirror to all legacy and backup keys so no version update ever loses students
-    localStorage.setItem('fam_portal_students_permanent', dataStr);
-    localStorage.setItem('fam_portal_students_v4', dataStr);
-    localStorage.setItem('fam_portal_students_v3', dataStr);
-    localStorage.setItem('fam_portal_students_v2', dataStr);
-    localStorage.setItem('fam_portal_students_backup', dataStr);
-    localStorage.setItem('fam_students_backup', dataStr);
+    // Write to every canonical key we read back from.
+    for (const k of STUDENT_STORAGE_KEYS) {
+      localStorage.setItem(k, dataStr);
+    }
+    // Purge legacy mirrors so an old copy can never resurrect removed students.
+    for (const k of LEGACY_STUDENT_STORAGE_KEYS) {
+      localStorage.removeItem(k);
+    }
   }
 
   public exportStudentsData(): string {
@@ -752,6 +775,20 @@ class StudentPortalService {
   }
 
   // --- PROGRESS & GAMIFICATION ---
+
+  /** Registra um exercício realizado pelo aluno (quiz, dictée ou flashcard) no histórico dele. */
+  public recordStudentActivity(studentId: string, entry: Omit<StudentActivityRecord, 'id' | 'at'>) {
+    const student = this.students.find((s) => s.id === studentId);
+    if (!student) return;
+
+    const record: StudentActivityRecord = {
+      ...entry,
+      id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      at: new Date().toISOString(),
+    };
+    const log = [record, ...(student.activityLog || [])].slice(0, 50);
+    this.updateStudent(studentId, { activityLog: log });
+  }
 
   public completeWeekLesson(studentId: string, weekId: string, pointsEarned: number) {
     const student = this.students.find((s) => s.id === studentId);

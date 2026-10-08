@@ -6,6 +6,7 @@ import { LevelsSection } from './components/LevelsSection';
 import { FlashcardsView } from './components/FlashcardsView';
 import { QuizView } from './components/QuizView';
 import { DicteeView } from './components/DicteeView';
+import { OralView } from './components/OralView';
 import { FichesView } from './components/FichesView';
 import { RevisionsView } from './components/RevisionsView';
 import { InstallModal } from './components/InstallModal';
@@ -13,7 +14,10 @@ import { StudentLoginModal } from './components/StudentPortal/StudentLoginModal'
 import { StudentDashboard } from './components/StudentPortal/StudentDashboard';
 import { TeacherDashboard } from './components/TeacherPortal/TeacherDashboard';
 import { studentPortalService } from './services/studentPortalService';
-import { FLASHCARDS_DATA, QUIZ_DATA, DICTEE_DATA, FICHES_DATA } from './data/learningContent';
+import { flashcardService } from './services/flashcardService';
+import { FICHES_DATA } from './data/learningContent';
+import { dicteeService } from './services/dicteeService';
+import { quizService } from './services/quizService';
 import { Heart, Smartphone, GraduationCap, ArrowRight, Sparkles } from 'lucide-react';
 
 export function App() {
@@ -30,6 +34,7 @@ export function App() {
   });
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [dicteeMode, setDicteeMode] = useState<'dictee' | 'oral'>('dictee');
   const [syncSuccessMsg, setSyncSuccessMsg] = useState<string | null>(null);
 
   // Portal session
@@ -86,6 +91,13 @@ export function App() {
       setKnownCards((prev) => [...prev, cardId]);
       setReviewCards((prev) => prev.filter((id) => id !== cardId));
       setTotalPoints((prev) => prev + 15);
+      if (session.currentUser) {
+        studentPortalService.recordStudentActivity(session.currentUser.id, {
+          type: 'flashcards',
+          title: 'Flashcard dominado',
+          points: 15,
+        });
+      }
     }
   };
 
@@ -96,14 +108,30 @@ export function App() {
     }
   };
 
-  const handleQuizComplete = (score: number) => {
+  const handleQuizComplete = (score: number, total?: number) => {
     const earned = score * 25;
     setTotalPoints((prev) => prev + earned);
+    if (session.currentUser) {
+      studentPortalService.recordStudentActivity(session.currentUser.id, {
+        type: 'quiz',
+        title: 'Quiz de fixação',
+        score,
+        total,
+        points: earned,
+      });
+    }
   };
 
   const handleCompleteDictee = (_id: string, correct: boolean) => {
     if (correct) {
       setTotalPoints((prev) => prev + 25);
+      if (session.currentUser) {
+        studentPortalService.recordStudentActivity(session.currentUser.id, {
+          type: 'dictee',
+          title: 'Dictée concluída',
+          points: 25,
+        });
+      }
     }
   };
 
@@ -132,9 +160,45 @@ export function App() {
   };
 
   // Filter content by selected level
-  const currentCards = FLASHCARDS_DATA.filter((c) => c.level === currentLevel);
-  const currentQuizzes = QUIZ_DATA.filter((q) => q.level === currentLevel);
-  const currentDictees = DICTEE_DATA.filter((d) => d.level === currentLevel);
+  const allFlashcards = flashcardService.getFlashcards();
+  const allQuizzes = quizService.getQuizzes();
+  // Reuse the flashcards/quizzes authored inside the students' weekly modules
+  // (visible to non-student users too, grouped by the module's level).
+  const weeklyModules = studentPortalService.getWeeklyModules();
+  const moduleFlashcards = weeklyModules.flatMap((m) => m.lessons?.flashcards ?? []);
+  const moduleQuizzes = weeklyModules.flatMap((m) => m.lessons?.quizzes ?? []);
+  const knownFlashcardIds = new Set(allFlashcards.map((c) => c.id));
+  const knownQuizIds = new Set(allQuizzes.map((q) => q.id));
+  const allCardsWithModules = [
+    ...allFlashcards,
+    ...moduleFlashcards
+      .filter(
+        (c) => c.french.trim() !== '' && c.portuguese.trim() !== '' && !knownFlashcardIds.has(c.id)
+      )
+      .map((c) => ({ ...c, fromModule: true })),
+  ];
+  const allQuizzesWithModules = [
+    ...allQuizzes,
+    ...moduleQuizzes
+      .filter(
+        (q) => q.question.trim() !== '' && q.options.some((o) => o.trim() !== '') && !knownQuizIds.has(q.id)
+      )
+      .map((q) => ({ ...q, fromModule: true })),
+  ];
+  const currentCards = allCardsWithModules.filter((c) => c.level === currentLevel);
+  const currentQuizzes = allQuizzesWithModules.filter((q) => q.level === currentLevel);
+  // Same for dictées: fixed program + teacher's own + module lesson dictées.
+  const allDictees = dicteeService.getDictees();
+  const knownDicteeIds = new Set(allDictees.map((d) => d.id));
+  const moduleDictees = weeklyModules.flatMap((m) => m.lessons?.dictees ?? []);
+  const currentDictees = [
+    ...allDictees,
+    ...moduleDictees
+      .filter(
+        (d) => d.sentence.trim() !== '' && d.translation.trim() !== '' && !knownDicteeIds.has(d.id)
+      )
+      .map((d) => ({ ...d, fromModule: true })),
+  ].filter((d) => d.level === currentLevel);
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] text-[#0F172A] flex flex-col selection:bg-[#8B2626]/10 selection:text-[#8B2626]">
@@ -254,7 +318,7 @@ export function App() {
                   <h2 className="font-cormorant text-2xl sm:text-3xl font-bold text-[#0F172A]">
                     {activeTab === 'flashcards' && 'Flashcards & Pronúncia Nativa'}
                     {activeTab === 'quiz' && 'Exercícios & Fixação Pedagógica'}
-                    {activeTab === 'dictee' && 'Laboratório de Escuta & Dictée'}
+                    {activeTab === 'dictee' && "Dictée & Entraînement à l'oral"}
                     {activeTab === 'fiches' && 'Fiches Mémo da Professora'}
                     {activeTab === 'revisions' && 'Meu Plano de Revisão Personalizado'}
                   </h2>
@@ -300,11 +364,47 @@ export function App() {
                 )}
 
                 {activeTab === 'dictee' && (
-                  <DicteeView
-                    items={currentDictees}
-                    currentLevel={currentLevel}
-                    onCompleteDictee={handleCompleteDictee}
-                  />
+                  <div className="space-y-6">
+                    <div className="flex justify-center">
+                      <div className="flex bg-white p-1 rounded-xl border border-[#EBE4D8] text-xs font-semibold shadow-2xs">
+                        <button
+                          type="button"
+                          onClick={() => setDicteeMode('dictee')}
+                          className={`px-4 py-1.5 rounded-lg transition-all ${
+                            dicteeMode === 'dictee'
+                              ? 'bg-[#8B2626] text-white shadow-2xs'
+                              : 'text-[#5A6578] hover:text-[#0F172A]'
+                          }`}
+                        >
+                          Dictée (escrita)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDicteeMode('oral')}
+                          className={`px-4 py-1.5 rounded-lg transition-all ${
+                            dicteeMode === 'oral'
+                              ? 'bg-[#8B2626] text-white shadow-2xs'
+                              : 'text-[#5A6578] hover:text-[#0F172A]'
+                          }`}
+                        >
+                          Entraînement à l'oral
+                        </button>
+                      </div>
+                    </div>
+
+                    {dicteeMode === 'dictee' ? (
+                      <DicteeView
+                        items={currentDictees}
+                        currentLevel={currentLevel}
+                        onCompleteDictee={handleCompleteDictee}
+                      />
+                    ) : (
+                      <OralView
+                        items={currentDictees}
+                        currentLevel={currentLevel}
+                      />
+                    )}
+                  </div>
                 )}
 
                 {activeTab === 'fiches' && (
@@ -313,7 +413,7 @@ export function App() {
 
                 {activeTab === 'revisions' && (
                   <RevisionsView
-                    cards={FLASHCARDS_DATA}
+                    cards={allCardsWithModules}
                     reviewCardIds={reviewCards}
                     currentLevel={currentLevel}
                     onMarkKnown={handleMarkKnown}

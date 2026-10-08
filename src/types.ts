@@ -23,6 +23,7 @@ export interface Flashcard {
   exampleFr: string;
   examplePt: string;
   tip?: string;
+  fromModule?: boolean;
 }
 
 export interface QuizQuestion {
@@ -36,6 +37,7 @@ export interface QuizQuestion {
   correctIndex: number;
   explanation: string;
   melissaTip?: string;
+  fromModule?: boolean;
 }
 
 export interface DicteeItem {
@@ -45,6 +47,7 @@ export interface DicteeItem {
   translation: string;
   hint: string;
   difficulty: 'facile' | 'moyen' | 'avance';
+  fromModule?: boolean;
 }
 
 export interface FicheGrammaire {
@@ -58,6 +61,18 @@ export interface FicheGrammaire {
     examples: { fr: string; pt: string }[];
   }[];
   melissaAdvice: string;
+}
+
+export type ActivityType = 'quiz' | 'dictee' | 'flashcards';
+
+export interface StudentActivityRecord {
+  id: string;
+  type: ActivityType;
+  title: string;
+  score?: number; // acertos (quizzes)
+  total?: number; // total de perguntas (quizzes)
+  points: number; // pontos ganhos na atividade
+  at: string; // ISO date
 }
 
 export interface StudentProgress {
@@ -108,6 +123,7 @@ export interface StudentProfile {
   streakDays: number;
   completedWeekIds: string[];
   registeredAt: string;
+  activityLog?: StudentActivityRecord[];
   payment?: StudentPaymentInfo;
 }
 

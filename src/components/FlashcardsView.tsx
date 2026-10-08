@@ -15,6 +15,7 @@ import {
 import { speechService } from '../services/speech';
 import { speechRecognitionService, PronunciationResult } from '../services/speechRecognition';
 import { getWhatsAppQuestionUrl } from '../services/whatsapp';
+import { ModuleBadge } from './ModuleBadge';
 import confetti from 'canvas-confetti';
 
 interface FlashcardsViewProps {
@@ -163,6 +164,7 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
           <span className="uppercase tracking-wide">Nível {currentLevel}</span>
           <span>•</span>
           <span className="text-[#0F172A]">{currentCard.category}</span>
+          {currentCard.fromModule && <ModuleBadge />}
         </div>
         <div>
           Cartão {currentIndex + 1} de {filteredCards.length}
