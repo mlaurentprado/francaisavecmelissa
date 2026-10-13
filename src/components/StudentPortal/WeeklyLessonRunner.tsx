@@ -4,7 +4,8 @@ import { FlashcardsView } from '../FlashcardsView';
 import { QuizView } from '../QuizView';
 import { DicteeView } from '../DicteeView';
 import { studentPortalService } from '../../services/studentPortalService';
-import { CheckCircle2, ArrowLeft, Trophy, Layers, HelpCircle, Headphones } from 'lucide-react';
+import { CheckCircle2, ArrowLeft, Trophy, Layers, HelpCircle, Headphones, Mic } from 'lucide-react';
+import { OralView } from '../OralView';
 import confetti from 'canvas-confetti';
 
 interface WeeklyLessonRunnerProps {
@@ -20,7 +21,7 @@ export const WeeklyLessonRunner: React.FC<WeeklyLessonRunnerProps> = ({
   onBack,
   onCompleted,
 }) => {
-  const [subTab, setSubTab] = useState<'flashcards' | 'quiz' | 'dictee'>('flashcards');
+  const [subTab, setSubTab] = useState<'flashcards' | 'quiz' | 'dictee' | 'oral'>('flashcards');
   const [isDone, setIsDone] = useState(false);
 
   const handleFinishWeek = () => {
@@ -139,6 +140,19 @@ export const WeeklyLessonRunner: React.FC<WeeklyLessonRunnerProps> = ({
           <Headphones className="w-3.5 h-3.5" />
           <span>Dictée ({module.lessons.dictees.length})</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setSubTab('oral')}
+          className={`flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+            subTab === 'oral'
+              ? 'bg-[#8B2626] text-white shadow-2xs'
+              : 'text-[#5A6578] hover:text-[#0F172A]'
+          }`}
+        >
+          <Mic className="w-3.5 h-3.5" />
+          <span>Oral ({module.lessons.dictees.length})</span>
+        </button>
       </div>
 
       {/* Content Runner */}
@@ -178,6 +192,25 @@ export const WeeklyLessonRunner: React.FC<WeeklyLessonRunnerProps> = ({
                 className="py-3 px-6 rounded-xl bg-[#8B2626] hover:bg-[#731E1E] text-white font-bold text-xs sm:text-sm shadow-xs transition-all"
               >
                 Continuar para o Ditado da Semana →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {subTab === 'oral' && (
+          <div className="space-y-6">
+            <OralView
+              items={module.lessons.dictees}
+              currentLevel={module.level}
+            />
+            <div className="text-center pt-4 border-t border-[#EBE4D8]">
+              <button
+                type="button"
+                onClick={handleFinishWeek}
+                className="py-3.5 px-8 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 mx-auto"
+              >
+                <CheckCircle2 className="w-5 h-5 text-emerald-300" />
+                <span>Finalizar Semana e Coletar Pontos ✨</span>
               </button>
             </div>
           </div>

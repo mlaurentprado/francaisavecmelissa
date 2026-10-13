@@ -7,13 +7,11 @@ import {
   AlertCircle,
   ArrowRight,
   HelpCircle,
-  Mic,
   MessageCircle,
 } from 'lucide-react';
 import { speechService } from '../services/speech';
-import { speechRecognitionService, PronunciationResult } from '../services/speechRecognition';
 import { getWhatsAppQuestionUrl } from '../services/whatsapp';
-import confetti from 'canvas-confetti';
+import { ModuleBadge } from './ModuleBadge';
 
 interface DicteeViewProps {
   items: DicteeItem[];
@@ -32,11 +30,6 @@ export const DicteeView: React.FC<DicteeViewProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [showHint, setShowHint] = useState(false);
 
-  // Mic recognition state
-  const [isListening, setIsListening] = useState(false);
-  const [pronunciationResult, setPronunciationResult] = useState<PronunciationResult | null>(null);
-  const [micError, setMicError] = useState<string | null>(null);
-
   const currentItem: DicteeItem | undefined = items[currentIndex];
 
   const frenchAccents = ['é', 'è', 'ê', 'à', 'â', 'î', 'ô', 'û', 'ç', 'œ', "'"];
@@ -49,28 +42,6 @@ export const DicteeView: React.FC<DicteeViewProps> = ({
       onEnd: () => setIsPlaying(false),
       onError: () => setIsPlaying(false),
     });
-  };
-
-  const handleStartMic = () => {
-    if (!currentItem) return;
-    setPronunciationResult(null);
-    setMicError(null);
-
-    speechRecognitionService.startListening(
-      currentItem.sentence,
-      (result) => {
-        setPronunciationResult(result);
-        if (result.similarity >= 80) {
-          confetti({
-            particleCount: 50,
-            spread: 60,
-            origin: { y: 0.7 },
-          });
-        }
-      },
-      (err) => setMicError(err),
-      (listening) => setIsListening(listening)
-    );
   };
 
   const handleInsertAccent = (char: string) => {
@@ -101,15 +72,11 @@ export const DicteeView: React.FC<DicteeViewProps> = ({
       setUserInput('');
       setIsSubmitted(false);
       setShowHint(false);
-      setPronunciationResult(null);
-      setMicError(null);
     } else {
       setCurrentIndex(0);
       setUserInput('');
       setIsSubmitted(false);
       setShowHint(false);
-      setPronunciationResult(null);
-      setMicError(null);
     }
   };
 
@@ -130,6 +97,7 @@ export const DicteeView: React.FC<DicteeViewProps> = ({
           <span className="uppercase tracking-wide">Nível {currentLevel}</span>
           <span>•</span>
           <span className="text-[#0F172A]">Ditado {currentIndex + 1} de {items.length}</span>
+          {currentItem.fromModule && <ModuleBadge />}
         </div>
         <span className="px-3 py-1 rounded-full bg-[#F4EFE6] text-[#78644E] text-xs font-semibold capitalize border border-[#DDD3C1]">
           {currentItem.difficulty}
@@ -143,10 +111,10 @@ export const DicteeView: React.FC<DicteeViewProps> = ({
             Écoutez et écrivez la phrase
           </h2>
           <p className="text-xs sm:text-sm text-[#5A6578]">
-            Ouça com atenção a pronúncia nativa e digite a frase em francês. Você também pode treinar a sua fala!
+            Ouça com atenção a pronúncia nativa e digite a frase em francês.
           </p>
 
-          {/* Audio triggers & Mic button */}
+          {/* Audio triggers */}
           <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3 pt-3">
             <button
               type="button"
@@ -171,45 +139,7 @@ export const DicteeView: React.FC<DicteeViewProps> = ({
               <span>Mais lento</span>
             </button>
 
-            {/* Mic practice */}
-            <button
-              type="button"
-              onClick={handleStartMic}
-              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-full font-semibold text-xs transition-all shadow-xs ${
-                isListening
-                  ? 'bg-rose-600 text-white animate-pulse'
-                  : 'bg-white text-[#0F172A] border border-[#D4C8B8] hover:bg-[#F9F6F0]'
-              }`}
-            >
-              <Mic className="w-4 h-4 text-[#8B2626]" />
-              <span>{isListening ? 'Fale agora...' : 'Treinar Fala'}</span>
-            </button>
           </div>
-
-          {/* Pronunciation Feedback */}
-          {pronunciationResult && (
-            <div
-              className={`mx-auto max-w-md p-3 rounded-xl border text-left text-xs space-y-1 animate-fadeIn shadow-2xs ${
-                pronunciationResult.similarity >= 75
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-950'
-                  : 'bg-amber-50 border-amber-200 text-amber-950'
-              }`}
-            >
-              <div className="flex items-center justify-between font-bold">
-                <span>{pronunciationResult.feedback}</span>
-                <span className="px-2 py-0.5 rounded-full bg-white/80">
-                  {pronunciationResult.similarity}%
-                </span>
-              </div>
-              <p className="text-slate-600 italic">Ouvido: "{pronunciationResult.transcript}"</p>
-            </div>
-          )}
-
-          {micError && (
-            <div className="mx-auto max-w-md p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 text-xs">
-              {micError}
-            </div>
-          )}
         </div>
 
         {/* Input form */}

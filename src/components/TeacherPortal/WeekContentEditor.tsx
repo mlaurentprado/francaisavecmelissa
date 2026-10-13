@@ -21,22 +21,27 @@ import {
 
 interface WeekContentEditorProps {
   initialModule?: WeeklyModule;
+  presetStudentId?: string;
   onSave: (moduleData: Omit<WeeklyModule, 'id' | 'createdAt'> & { id?: string }) => void;
   onCancel: () => void;
 }
 
 export const WeekContentEditor: React.FC<WeekContentEditorProps> = ({
   initialModule,
+  presetStudentId,
   onSave,
   onCancel,
 }) => {
   const students = studentPortalService.getStudents();
   const [studentId, setStudentId] = useState<string>(
-    initialModule?.studentId || (students[0]?.id ?? 'ALL')
+    initialModule?.studentId || presetStudentId || (students[0]?.id ?? 'ALL')
   );
   const [weekNumber, setWeekNumber] = useState<number>(initialModule?.weekNumber || 1);
   const [title, setTitle] = useState<string>(initialModule?.title || '');
-  const [level, setLevel] = useState<Level>(initialModule?.level || 'A1');
+  const [level, setLevel] = useState<Level>(
+    initialModule?.level ||
+      (presetStudentId ? students.find((s) => s.id === presetStudentId)?.level || 'A1' : 'A1')
+  );
   const [dateStr, setDateStr] = useState<string>(
     initialModule?.date ||
       `Semana ${initialModule?.weekNumber || 1} • ${new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`
