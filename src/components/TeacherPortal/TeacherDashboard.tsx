@@ -4,6 +4,8 @@ import { studentPortalService, TeacherSettings } from '../../services/studentPor
 import { flashcardService } from '../../services/flashcardService';
 import { getWhatsAppPaymentReminderUrl, getWhatsAppRescheduleUrl } from '../../services/whatsapp';
 import { quizService } from '../../services/quizService';
+import { TeacherSkillTreeManager } from './TeacherSkillTreeManager';
+import { skillTreeService } from '../../services/skillTreeService';
 import { dicteeService } from '../../services/dicteeService';
 import { WeekContentEditor } from './WeekContentEditor';
 import { StudentProgressPanel } from './StudentProgressPanel';
@@ -18,6 +20,7 @@ import {
   Video,
   FileText,
   Sparkles,
+  TreePine,
   LogOut,
   Layers,
   UserPlus,
@@ -56,12 +59,17 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
   const [editingModule, setEditingModule] = useState<WeeklyModule | undefined>(undefined);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editorStudentId, setEditorStudentId] = useState<string | undefined>(undefined);
-  const [activeTab, setActiveTab] = useState<'weeks' | 'students' | 'financial' | 'cards' | 'quizzes' | 'dictees'>('weeks');
+  const [activeTab, setActiveTab] = useState<'weeks' | 'students' | 'financial' | 'cards' | 'quizzes' | 'dictees' | 'tree'>('weeks');
 
   // Quizzes criados pela professora (contador da aba; o CRUD vive em TeacherQuizManager)
   const [customQuizzes, setCustomQuizzes] = useState<QuizQuestion[]>(() => quizService.getCustomQuizzes());
   // Dictées criadas pela professora (contador da aba; o CRUD vive em TeacherDicteeManager)
   const [customDictees, setCustomDictees] = useState<DicteeItem[]>(() => dicteeService.getCustomDictees());
+  // Contador da aba Árvore: galhos + folhas criados pela professora
+  const [treeBranchCount, setTreeBranchCount] = useState(() => {
+    const t = skillTreeService.getTeacherContent();
+    return t.branches.length + t.leaves.length;
+  });
   const [studentFilter, setStudentFilter] = useState<string>('ALL');
 
   // Flashcards criados pela professora (adicionar / editar / excluir)
@@ -534,6 +542,19 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>Dictées ({customDictees.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('tree')}
+            className={`px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap ${
+              activeTab === 'tree'
+                ? 'bg-[#8B2626] text-white shadow-2xs'
+                : 'text-[#5A6578] hover:text-[#0F172A]'
+            }`}
+          >
+            <TreePine className="w-3.5 h-3.5" />
+            <span>Árvore ({treeBranchCount})</span>
           </button>
 
           <button
@@ -1321,6 +1342,15 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
 
       {activeTab === 'dictees' && (
         <TeacherDicteeManager onChange={setCustomDictees} />
+      )}
+
+      {activeTab === 'tree' && (
+        <TeacherSkillTreeManager
+          onChange={() => {
+            const t = skillTreeService.getTeacherContent();
+            setTreeBranchCount(t.branches.length + t.leaves.length);
+          }}
+        />
       )}
 
       {/* Editor Modal de Aulas Semanais */}

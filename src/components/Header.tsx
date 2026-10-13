@@ -8,6 +8,7 @@ import {
   BookOpen,
   Smartphone,
   BookmarkCheck,
+  TreePine,
   User,
   GraduationCap,
   LogOut,
@@ -141,6 +142,18 @@ export const Header: React.FC<HeaderProps> = ({
                   {reviewCount}
                 </span>
               )}
+            </button>
+
+            <button
+              onClick={() => onSelectTab('skilltree')}
+              className={`transition-all relative py-1.5 flex items-center gap-1.5 ${
+                activeTab === 'skilltree'
+                  ? 'text-[#8B2626] font-semibold after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-[#8B2626]'
+                  : 'hover:text-[#0F172A]'
+              }`}
+            >
+              <TreePine className="w-4 h-4 opacity-70" />
+              <span>Árvore</span>
             </button>
           </nav>
 
@@ -283,6 +296,18 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <BookmarkCheck className="w-3.5 h-3.5" />
             <span>Revisões ({reviewCount})</span>
+          </button>
+
+          <button
+            onClick={() => onSelectTab('skilltree')}
+            className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+              activeTab === 'skilltree'
+                ? 'bg-[#8B2626] text-white'
+                : 'text-[#4B5563] hover:bg-[#F4EFE6]'
+            }`}
+          >
+            <TreePine className="w-3.5 h-3.5" />
+            <span>Árvore</span>
           </button>
         </div>
       </div>

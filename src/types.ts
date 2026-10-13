@@ -1,6 +1,63 @@
 export type Level = 'A1' | 'A2' | 'B1' | 'C1';
 
-export type TabType = 'flashcards' | 'quiz' | 'dictee' | 'fiches' | 'revisions' | 'portal';
+export type TabType = 'flashcards' | 'quiz' | 'dictee' | 'fiches' | 'revisions' | 'portal' | 'skilltree';
+
+// --- Árvore de Habilidades & Conquistas ---
+
+export type SkillAbility = 'ouvir' | 'falar' | 'ler' | 'escrever';
+export type LinkedActivity = 'flashcards' | 'quiz' | 'dictee';
+
+/** FOLHA — micro-habilidade / conteúdo (ex: "Verbo être"). */
+export interface SkillLeaf {
+  id: string;
+  branchId: string;
+  title: string;
+  description: string;
+  /** Lista de conteúdos (vocabulário, regras, exemplos). */
+  contents: string[];
+  /** Habilidades trabalhadas. */
+  skills: SkillAbility[];
+  /** Atividades vinculadas do app. */
+  linkedActivities: LinkedActivity[];
+  /** Critério de check (ex: "80% no quiz + 10 flashcards"). */
+  criterion: string;
+  level: Level;
+  order: number;
+}
+
+/** GALHO — macro-habilidade (ex: "Gramática"). */
+export interface SkillBranch {
+  id: string;
+  name: string;
+  /** Emoji/ícone. */
+  icon: string;
+  /** Cor base em hex (ex: #8B2626). */
+  color: string;
+  order: number;
+  level: Level;
+}
+
+export type SkillBadgeKind = 'branch' | 'tree' | 'streak' | 'milestone' | 'performance';
+
+/** BADGE — conquista desbloqueável. */
+export interface AchievementBadge {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  /** Texto amigável da condição (ex: "concluir todas as folhas do galho Gramática"). */
+  condition: string;
+  kind: SkillBadgeKind;
+  branchId?: string;
+  threshold?: number;
+}
+
+export type LeafStatus = 'blocked' | 'available' | 'in_progress' | 'dominated';
+
+export interface LeafProgress {
+  status: 'in_progress' | 'dominated';
+  date: string;
+}
 
 export interface LevelConfig {
   id: Level;

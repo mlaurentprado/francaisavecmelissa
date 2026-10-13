@@ -13,7 +13,11 @@ import { InstallModal } from './components/InstallModal';
 import { StudentLoginModal } from './components/StudentPortal/StudentLoginModal';
 import { StudentDashboard } from './components/StudentPortal/StudentDashboard';
 import { TeacherDashboard } from './components/TeacherPortal/TeacherDashboard';
+import { SkillTreeView } from './components/SkillTreeView';
+import { AchievementsPanel } from './components/AchievementsPanel';
 import { studentPortalService } from './services/studentPortalService';
+import { skillTreeService } from './services/skillTreeService';
+import { LeafProgress, AchievementBadge } from './types';
 import { flashcardService } from './services/flashcardService';
 import { FICHES_DATA } from './data/learningContent';
 import { dicteeService } from './services/dicteeService';
@@ -36,6 +40,27 @@ export function App() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [dicteeMode, setDicteeMode] = useState<'dictee' | 'oral'>('dictee');
   const [syncSuccessMsg, setSyncSuccessMsg] = useState<string | null>(null);
+
+  // Árvore de Habilidades & Conquistas (galhos/folhas relidos a cada render,
+  // para refletir o que a professora criar no painel)
+  const skillBranches = skillTreeService.getBranches();
+  const skillLeaves = skillTreeService.getLeaves();
+  const [skillProgress, setSkillProgress] = useState<Record<string, LeafProgress>>(() => skillTreeService.getProgress());
+  const [unlockedBadges, setUnlockedBadges] = useState<Record<string, string>>(() => skillTreeService.getUnlockedBadges());
+
+  const handleSkillInProgress = (leafId: string) => {
+    skillTreeService.markInProgress(leafId);
+    setSkillProgress(skillTreeService.getProgress());
+  };
+
+  const handleSkillDominated = (leafId: string): AchievementBadge[] => {
+    const newBadges = skillTreeService.markDominated(leafId);
+    setSkillProgress(skillTreeService.getProgress());
+    if (newBadges.length > 0) {
+      setUnlockedBadges(skillTreeService.getUnlockedBadges());
+    }
+    return newBadges;
+  };
 
   // Portal session
   const [session, setSession] = useState<AuthSession>(() => studentPortalService.getCurrentSession());
@@ -85,6 +110,19 @@ export function App() {
   useEffect(() => {
     localStorage.setItem('fam_points_v2', totalPoints.toString());
   }, [totalPoints]);
+
+  // Avalia badges automáticos (marcos, sequência, desempenho) ao visitar a árvore
+  // ou quando o progresso do aluno muda.
+  useEffect(() => {
+    const before = skillTreeService.getUnlockedBadges();
+    const after = skillTreeService.evaluateBadges({
+      knownCardCount: knownCards.length,
+      activityLog: session.currentUser?.activityLog ?? [],
+    });
+    if (Object.keys(after).length !== Object.keys(before).length) {
+      setUnlockedBadges(after);
+    }
+  }, [activeTab, knownCards, session.currentUser]);
 
   const handleMarkKnown = (cardId: string) => {
     if (!knownCards.includes(cardId)) {
@@ -321,6 +359,7 @@ export function App() {
                     {activeTab === 'dictee' && "Dictée & Entraînement à l'oral"}
                     {activeTab === 'fiches' && 'Fiches Mémo da Professora'}
                     {activeTab === 'revisions' && 'Meu Plano de Revisão Personalizado'}
+                    {activeTab === 'skilltree' && 'Árvore de Habilidades & Conquistas'}
                   </h2>
                 </div>
 
@@ -404,6 +443,29 @@ export function App() {
                         currentLevel={currentLevel}
                       />
                     )}
+                  </div>
+                )}
+
+                {activeTab === 'skilltree' && (
+                  <div className="space-y-8">
+                    <SkillTreeView
+                      branches={skillBranches}
+                      leaves={skillLeaves}
+                      progress={skillProgress}
+                      unlockedBadges={unlockedBadges}
+                      currentLevel={currentLevel}
+                      onMarkInProgress={handleSkillInProgress}
+                      onMarkDominated={handleSkillDominated}
+                      onSelectTab={(tab) => {
+                        setActiveTab(tab as typeof activeTab);
+                        scrollToStudyArea();
+                      }}
+                    />
+                    <AchievementsPanel
+                      badges={skillTreeService.getBadges()}
+                      unlocked={unlockedBadges}
+                      branches={skillBranches}
+                    />
                   </div>
                 )}
 
