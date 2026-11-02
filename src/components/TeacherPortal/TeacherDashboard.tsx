@@ -119,6 +119,9 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
   const [editPaymentDate, setEditPaymentDate] = useState('2026-10-10');
   const [editStatus, setEditStatus] = useState<PaymentStatus>('paid');
 
+  // Zerar Mês Modal State (virada de mês)
+  const [isResetMonthOpen, setIsResetMonthOpen] = useState(false);
+
   // Quick Edit Modal State (amount, date, classes)
   const [quickEditStudent, setQuickEditStudent] = useState<StudentProfile | null>(null);
   const [quickEditType, setQuickEditType] = useState<'amount' | 'date' | 'classes' | null>(null);
@@ -267,6 +270,12 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
   const handleRenewCycle = (studentId: string) => {
     studentPortalService.renewStudentCycle(studentId);
     setStudents(studentPortalService.getStudents());
+  };
+
+  const handleConfirmResetMonth = () => {
+    studentPortalService.resetMonthlyPayments();
+    setStudents(studentPortalService.getStudents());
+    setIsResetMonthOpen(false);
   };
 
   const formatDisplayDate = (d?: string) => {
@@ -980,15 +989,27 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={handleOpenBackup}
-                className="py-2 px-3.5 rounded-xl bg-white hover:bg-[#FAF7F2] text-[#8B2626] font-bold text-xs border border-[#D4C8B8] shadow-2xs transition-all flex items-center justify-center gap-1.5 shrink-0"
-                title="Sincronizar com celular via QR Code ou WhatsApp"
-              >
-                <Smartphone className="w-4 h-4 text-[#8B2626]" />
-                <span>Sincronizar Celular</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleOpenBackup}
+                  className="py-2 px-3.5 rounded-xl bg-white hover:bg-[#FAF7F2] text-[#8B2626] font-bold text-xs border border-[#D4C8B8] shadow-2xs transition-all flex items-center justify-center gap-1.5 shrink-0"
+                  title="Sincronizar com celular via QR Code ou WhatsApp"
+                >
+                  <Smartphone className="w-4 h-4 text-[#8B2626]" />
+                  <span>Sincronizar Celular</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsResetMonthOpen(true)}
+                  className="py-2 px-3.5 rounded-xl bg-white hover:bg-[#FAF7F2] text-[#8B2626] font-bold text-xs border border-[#D4C8B8] shadow-2xs transition-all flex items-center justify-center gap-1.5 shrink-0"
+                  title="Zerar o mês: todos os alunos voltam a 0 aulas no ciclo e ficam Pendentes"
+                >
+                  <RefreshCw className="w-4 h-4 text-[#8B2626]" />
+                  <span>Zerar Mês</span>
+                </button>
+              </div>
             </div>
 
             <div className="space-y-3">
@@ -1782,6 +1803,57 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onLogout }) 
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Zerar Mês (virada do mês) */}
+      {isResetMonthOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl border border-[#EBE4D8] p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-start justify-between gap-3 border-b border-[#EBE4D8] pb-3">
+              <div>
+                <h4 className="font-cormorant text-2xl font-bold text-[#0F172A] flex items-center gap-2">
+                  <RefreshCw className="w-5 h-5 text-[#8B2626]" />
+                  <span>Zerar o Mês</span>
+                </h4>
+                <p className="text-xs text-[#5A6578]">Virada do mês para todos os alunos.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsResetMonthOpen(false)}
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <ul className="text-xs text-[#5A6578] space-y-1.5">
+              <li>• Todos voltam para <strong className="text-[#0F172A]">0 aulas no ciclo</strong>.</li>
+              <li>
+                • O status de todos fica{' '}
+                <strong className="text-[#0F172A]">Pendente</strong> ({students.length}{' '}
+                {students.length === 1 ? 'aluno' : 'alunos'}).
+              </li>
+              <li>• Plano, valor, datas e chave PIX são mantidos.</li>
+            </ul>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setIsResetMonthOpen(false)}
+                className="flex-1 py-2.5 px-4 rounded-xl border border-[#D4C8B8] text-xs font-bold text-[#5A6578] hover:bg-[#FAF7F2] transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmResetMonth}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-[#8B2626] hover:bg-[#731E1E] text-white text-xs font-bold shadow-xs transition-colors"
+              >
+                Sim, zerar o mês
+              </button>
+            </div>
           </div>
         </div>
       )}

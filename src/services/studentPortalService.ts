@@ -4,6 +4,7 @@ import {
   AuthSession,
   Level,
   StudentPaymentInfo,
+  PaymentStatus,
   ClassScheduleRecord,
   StudentActivityRecord,
 } from '../types';
@@ -696,6 +697,40 @@ class StudentPortalService {
 
     this.updateStudent(studentId, { payment: updatedPayment });
     return this.students.find((s) => s.id === studentId);
+  }
+
+  /**
+   * Virada de mês: zera o ciclo de TODOS os alunos
+   * (0 aulas dadas + status Pendente). Plano, valor, datas e chave PIX são mantidos.
+   */
+  public resetMonthlyPayments(): number {
+    this.students = this.students.map((s) => {
+      const currentPayment: StudentPaymentInfo = s.payment || {
+        planName: 'Aulas Particulares VIP (Pacote 4 Aulas)',
+        amount: 480,
+        billingCycleClasses: 4,
+        completedClassesInCycle: 0,
+        status: 'paid',
+      };
+      return {
+        ...s,
+        payment: {
+          ...currentPayment,
+          completedClassesInCycle: 0,
+          status: 'pending' as PaymentStatus,
+        },
+      };
+    });
+    this.saveStudents();
+
+    if (this.currentSession.currentUser) {
+      const updated = this.students.find((s) => s.id === this.currentSession.currentUser?.id);
+      if (updated) {
+        this.currentSession.currentUser = updated;
+        this.saveSession();
+      }
+    }
+    return this.students.length;
   }
 
   // --- SCHEDULES & RESCHEDULING ---
