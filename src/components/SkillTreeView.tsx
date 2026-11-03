@@ -10,6 +10,7 @@ import {
 } from '../types';
 import { Lock, Sprout, Flower2, Check, X, Sparkles, Eye, Ear, MessageSquare, PenLine } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { LeafSprigs, TreeTrunkCanvas } from './SkillTreeConnections';
 
 interface SkillTreeViewProps {
   branches: SkillBranch[];
@@ -158,16 +159,8 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
         </div>
       </div>
 
-      {/* TRONCO vertical + GALHOS */}
-      <div className="relative pl-7 pt-6 pb-2">
-        {/* Tronco */}
-        <div
-          aria-hidden
-          className="absolute left-1 top-0 bottom-6 w-2 rounded-full"
-          style={{ background: `linear-gradient(180deg, ${PALETTE.mossSoft} 0%, ${PALETTE.moss} 45%, ${PALETTE.terracotta} 130%)` }}
-        />
-
-        <div className="space-y-5">
+      {/* TRONCO principal + GALHOS — linhas desenhadas em SVG */}
+      <TreeTrunkCanvas className="relative pl-12 sm:pl-16 pt-6 pb-2 space-y-5">
           {branches.map((branch) => {
             const branchLeaves = leaves
               .filter((l) => l.branchId === branch.id)
@@ -180,24 +173,10 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
 
             return (
               <div key={branch.id} className="relative">
-                {/* GALHO — curva suave saindo do tronco até o cartão */}
-                <svg
-                  aria-hidden
-                  className="absolute -left-7 top-7 h-9 w-7 pointer-events-none"
-                  viewBox="0 0 28 36"
-                  preserveAspectRatio="none"
-                  fill="none"
-                >
-                  <path
-                    d="M8 0 C8 14 12 20 28 20"
-                    stroke={branch.color}
-                    strokeWidth="5"
-                    strokeLinecap="round"
-                    opacity={branchComplete ? 1 : 0.8}
-                  />
-                </svg>
-
                 <div
+                  data-branch-card
+                  data-branch-color={branch.color}
+                  data-branch-complete={branchComplete ? 'true' : 'false'}
                   className={`relative rounded-3xl border p-4 sm:p-5 shadow-2xs transition-all ${
                     branchComplete
                       ? 'border-[#D9B45E] ring-2 ring-[#D9B45E]/30'
@@ -243,15 +222,9 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
                     )}
                   </div>
 
-                  {/* Galho horizontal — de onde as folhas pendem */}
-                  <div
-                    aria-hidden
-                    className="mt-3 h-[2px] rounded-full"
-                    style={{ background: `linear-gradient(90deg, ${branch.color}CC, ${branch.color}00)` }}
-                  />
-
-                  {/* FOLHAS — cards pendurados com cabo/raminho */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-6 pt-2.5">
+                  {/* FOLHAS — cards pendurados no galho (ramos desenhados em SVG) */}
+                  <LeafSprigs color={branch.color}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-6">
                     {branchLeaves.map((leaf, i) => {
                       const status = getLeafStatus(leaf, leaves, progress);
                       const done = status === 'dominated';
@@ -260,14 +233,10 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
 
                       return (
                         <div key={leaf.id} className="relative">
-                          {/* cabo/raminho ligando a folha ao galho */}
-                          <span
-                            aria-hidden
-                            className="absolute left-[13px] -top-2.5 h-2.5 w-[2px] rounded-full"
-                            style={{ background: branch.color, opacity: blocked ? 0.22 : 0.45 }}
-                          />
                           <button
                             type="button"
+                            data-leaf-card
+                            data-leaf-blocked={blocked ? 'true' : 'false'}
                             onClick={() => setSelectedLeaf(leaf)}
                             className={`w-full h-full text-left p-3.5 rounded-2xl border transition-all group ${
                               blocked ? 'opacity-60 cursor-not-allowed' : 'hover:shadow-sm'
@@ -322,12 +291,12 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
                       </p>
                     )}
                   </div>
+                  </LeafSprigs>
                 </div>
               </div>
             );
           })}
-        </div>
-      </div>
+      </TreeTrunkCanvas>
 
       {/* Toast de celebração */}
       {(toast || newBadgeToast) && (
