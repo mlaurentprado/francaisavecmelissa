@@ -160,7 +160,7 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
       </div>
 
       {/* TRONCO principal + GALHOS — linhas desenhadas em SVG */}
-      <TreeTrunkCanvas className="relative pl-12 sm:pl-16 pt-6 pb-2 space-y-5">
+      <TreeTrunkCanvas className="relative pl-14 sm:pl-24 pt-6 pb-2 space-y-6">
           {branches.map((branch) => {
             const branchLeaves = leaves
               .filter((l) => l.branchId === branch.id)

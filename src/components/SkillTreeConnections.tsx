@@ -2,39 +2,83 @@ import React, { useId, useLayoutEffect, useRef, useState } from 'react';
 
 /**
  * Desenho da árvore em SVG.
- * As linhas são calculadas a partir da posição real dos cartões (galhos e
- * folhas) no layout, então continuam corretas em qualquer largura de tela.
- * Nada aqui muda regra de negócio — é só o desenho das conexões.
+ * O tronco é uma forma orgânica (com raízes), cada galho sai do tronco numa
+ * curva longa até o seu quadro, e dentro do quadro um galho curvo pendura as
+ * folhas. As posições são medidas no layout real, então tudo se ajusta em
+ * qualquer largura de tela. Nada aqui altera regra de negócio.
  */
 
-const TRUNK_X = 14;
+const TRUNK_X = 16;
+const TRUNK_TOP_HALF = 5;
+const TRUNK_BOTTOM_HALF = 7;
+const ROOT_HEIGHT = 90;
 
 type BranchAnchor = { x: number; y: number; color: string; complete: boolean };
 
-function trunkPath(height: number): string {
+/** Tronco: forma fechada, mais estreita na copa e com raízes no pé. */
+function trunkShape(height: number): string {
   if (height <= 0) return '';
-  // começa 24px acima do container para encostar na copa
-  const start = -24;
-  const steps = Math.max(2, Math.round((height - start) / 140));
-  const step = (height - start) / steps;
-  let d = `M ${TRUNK_X} ${start}`;
-  for (let i = 1; i <= steps; i++) {
-    const y0 = start + step * (i - 1);
-    const y1 = start + step * i;
-    const sway = i % 2 === 0 ? 6 : -6;
-    d += ` C ${TRUNK_X + sway} ${y0 + step / 3}, ${TRUNK_X - sway} ${y1 - step / 3}, ${TRUNK_X} ${y1}`;
-  }
-  return d;
+  const x = TRUNK_X;
+  const top = -28;
+  const bottom = height;
+  const rootTop = Math.max(bottom - ROOT_HEIGHT, top + 60);
+  const midA = top + (bottom - top) * 0.3;
+  const midB = top + (bottom - top) * 0.62;
+
+  return [
+    `M ${x - TRUNK_TOP_HALF} ${top}`,
+    `C ${x - TRUNK_TOP_HALF - 5} ${midA}, ${x - TRUNK_BOTTOM_HALF + 4} ${midB}, ${x - TRUNK_BOTTOM_HALF} ${rootTop}`,
+    `C ${x - TRUNK_BOTTOM_HALF - 9} ${rootTop + 38}, ${x - 15} ${bottom - 18}, ${x - 24} ${bottom}`,
+    `L ${x + 24} ${bottom}`,
+    `C ${x + 15} ${bottom - 18}, ${x + TRUNK_BOTTOM_HALF + 9} ${rootTop + 38}, ${x + TRUNK_BOTTOM_HALF} ${rootTop}`,
+    `C ${x + TRUNK_BOTTOM_HALF - 4} ${midB}, ${x + TRUNK_TOP_HALF + 5} ${midA}, ${x + TRUNK_TOP_HALF} ${top}`,
+    'Z',
+  ].join(' ');
 }
 
+type Point = { x: number; y: number };
+
+/** Pontos de controle do galho — a mesma curva serve para desenhar e ramificar. */
+function branchCurve(anchor: BranchAnchor): [Point, Point, Point, Point] {
+  const startX = TRUNK_X + TRUNK_TOP_HALF - 1;
+  const gap = Math.max(anchor.x - startX, 26);
+  const startY = Math.max(anchor.y - gap * 0.55, 2);
+  return [
+    { x: startX, y: startY },
+    { x: startX + gap * 0.45, y: startY },
+    { x: startX + gap * 0.78, y: anchor.y - gap * 0.14 },
+    { x: anchor.x, y: anchor.y },
+  ];
+}
+
+function pointOnCurve([p0, p1, p2, p3]: [Point, Point, Point, Point], t: number): Point {
+  const u = 1 - t;
+  return {
+    x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x,
+    y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y,
+  };
+}
+
+/** Galho: sai do tronco acima do quadro e desce em curva até ele. */
 function branchPath(anchor: BranchAnchor): string {
-  const startX = TRUNK_X + 4;
-  const startY = Math.max(anchor.y - 26, 2);
-  const endX = Math.max(anchor.x - 2, startX + 14);
-  return `M ${startX} ${startY} C ${startX + 14} ${startY}, ${endX - 28} ${anchor.y}, ${endX} ${anchor.y}`;
+  const [p0, c1, c2, p3] = branchCurve(anchor);
+  return `M ${p0.x} ${p0.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${p3.x} ${p3.y}`;
 }
 
-/** Container do tronco: mede os cartões de galho e desenha tronco + ramos. */
+/** Galhinho secundário com uma folha na ponta (só quando há folga). */
+function branchTwig(anchor: BranchAnchor): { d: string; tip: Point } | null {
+  const curve = branchCurve(anchor);
+  const gap = anchor.x - curve[0].x;
+  if (gap < 46) return null;
+  const attach = pointOnCurve(curve, 0.55);
+  const tip = { x: attach.x + gap * 0.18, y: attach.y - Math.min(26, gap * 0.36) };
+  return {
+    d: `M ${attach.x} ${attach.y} C ${attach.x + 5} ${attach.y - 9}, ${tip.x - 6} ${tip.y + 7}, ${tip.x} ${tip.y}`,
+    tip,
+  };
+}
+
+/** Container do tronco: mede os quadros e desenha tronco + galhos. */
 export const TreeTrunkCanvas: React.FC<{
   className?: string;
   children: React.ReactNode;
@@ -91,39 +135,71 @@ export const TreeTrunkCanvas: React.FC<{
         fill="none"
       >
         <defs>
-          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0.3" y2="1">
             <stop offset="0%" stopColor="#6E8352" />
-            <stop offset="50%" stopColor="#5F7A43" />
+            <stop offset="45%" stopColor="#5F7A43" />
+            <stop offset="85%" stopColor="#7A6A44" />
             <stop offset="100%" stopColor="#B5603F" />
           </linearGradient>
         </defs>
 
         {size.h > 0 && (
           <>
+            {/* tronco */}
+            <path d={trunkShape(size.h)} fill={`url(#${gradientId})`} />
             <path
-              d={trunkPath(size.h)}
-              stroke={`url(#${gradientId})`}
-              strokeWidth="9"
-              strokeLinecap="round"
-            />
-            <path
-              d={trunkPath(size.h)}
+              d={`M ${TRUNK_X - 1} -20 C ${TRUNK_X - 4} ${size.h * 0.3}, ${TRUNK_X - 2} ${size.h * 0.62}, ${TRUNK_X - 3} ${Math.max(size.h - ROOT_HEIGHT, 60)}`}
               stroke="#FFFFFF"
-              strokeOpacity="0.18"
-              strokeWidth="2.5"
+              strokeOpacity="0.16"
+              strokeWidth="2"
               strokeLinecap="round"
-              transform="translate(-2.5 0)"
             />
-            {anchors.map((anchor, i) => (
-              <path
-                key={i}
-                d={branchPath(anchor)}
-                stroke={anchor.color}
-                strokeOpacity={anchor.complete ? 1 : 0.85}
-                strokeWidth="5"
-                strokeLinecap="round"
-              />
-            ))}
+
+            {/* galhos */}
+            {anchors.map((anchor, i) => {
+              const twig = branchTwig(anchor);
+              const start = branchCurve(anchor)[0];
+              const core = anchor.complete ? 1 : 0.9;
+              return (
+                <g key={i}>
+                  <path
+                    d={branchPath(anchor)}
+                    stroke={anchor.color}
+                    strokeOpacity={anchor.complete ? 0.28 : 0.2}
+                    strokeWidth="9"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d={branchPath(anchor)}
+                    stroke={anchor.color}
+                    strokeOpacity={core}
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                  />
+                  {twig && (
+                    <>
+                      <path
+                        d={twig.d}
+                        stroke={anchor.color}
+                        strokeOpacity={core * 0.8}
+                        strokeWidth="2.4"
+                        strokeLinecap="round"
+                      />
+                      <ellipse
+                        cx={twig.tip.x}
+                        cy={twig.tip.y}
+                        rx="5.5"
+                        ry="3"
+                        fill={anchor.color}
+                        fillOpacity="0.45"
+                        transform={`rotate(-38 ${twig.tip.x} ${twig.tip.y})`}
+                      />
+                    </>
+                  )}
+                  <circle cx={start.x} cy={start.y} r="3.4" fill={anchor.color} fillOpacity="0.7" stroke="#FFFFFF" strokeOpacity="0.45" strokeWidth="1" />
+                </g>
+              );
+            })}
           </>
         )}
       </svg>
@@ -132,9 +208,9 @@ export const TreeTrunkCanvas: React.FC<{
   );
 };
 
-type LeafPoint = { x: number; y: number; blocked: boolean };
+type LeafPoint = { x: number; y: number; bottom: number; blocked: boolean };
 
-/** Raminho horizontal do galho + cabinhos curvos até cada folha. */
+/** Galho do quadro + cabinhos curvos que penduram cada folha. */
 export const LeafSprigs: React.FC<{ color: string; children: React.ReactNode }> = ({
   color,
   children,
@@ -157,6 +233,7 @@ export const LeafSprigs: React.FC<{ color: string; children: React.ReactNode }> 
         return {
           x: Math.round(r.left - box.left + r.width / 2),
           y: Math.round(r.top - box.top),
+          bottom: Math.round(r.bottom - box.top),
           blocked: card.dataset.leafBlocked === 'true',
         };
       });
@@ -179,11 +256,26 @@ export const LeafSprigs: React.FC<{ color: string; children: React.ReactNode }> 
     };
   });
 
-  const railY = 12;
+  // Cada folha pende do galho do quadro (primeira da coluna) ou da folha
+  // de cima da mesma coluna — assim a ramagem continua em qualquer tela.
+  const parents = new Map<number, number>();
+  const columns = new Map<number, number[]>();
+  leaves.forEach((leaf, i) => {
+    const key = Math.round(leaf.x / 12);
+    columns.set(key, [...(columns.get(key) ?? []), i]);
+  });
+  columns.forEach((indices) => {
+    indices.sort((a, b) => leaves[a].y - leaves[b].y);
+    indices.forEach((idx, k) => {
+      if (k > 0) parents.set(idx, indices[k - 1]);
+    });
+  });
+
+  const railY = 10;
   const railEnd = leaves.length > 0 ? Math.max(...leaves.map((l) => l.x)) : 0;
 
   return (
-    <div ref={ref} className="relative mt-3 pt-6">
+    <div ref={ref} className="relative mt-3 pt-8">
       <svg
         aria-hidden
         className="pointer-events-none absolute inset-0"
@@ -194,29 +286,60 @@ export const LeafSprigs: React.FC<{ color: string; children: React.ReactNode }> 
       >
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor={color} stopOpacity="0.9" />
-            <stop offset="100%" stopColor={color} stopOpacity="0.15" />
+            <stop offset="0%" stopColor={color} stopOpacity="0.95" />
+            <stop offset="100%" stopColor={color} stopOpacity="0.25" />
           </linearGradient>
         </defs>
 
         {leaves.length > 0 && (
           <>
+            {/* galho do quadro */}
             <path
-              d={`M 1 ${railY} Q ${railEnd / 2} ${railY + 4} ${railEnd} ${railY}`}
-              stroke={`url(#${gradientId})`}
-              strokeWidth="2.5"
+              d={`M 0 ${railY} Q ${railEnd * 0.45} ${railY + 12}, ${railEnd} ${railY}`}
+              stroke={color}
+              strokeOpacity="0.16"
+              strokeWidth="7"
               strokeLinecap="round"
             />
-            {leaves.map((leaf, i) => (
-              <path
-                key={i}
-                d={`M ${leaf.x} ${railY} C ${leaf.x - 5} ${railY + 6}, ${leaf.x + 5} ${leaf.y - 14}, ${leaf.x} ${leaf.y - 6}`}
-                stroke={color}
-                strokeOpacity={leaf.blocked ? 0.22 : 0.55}
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            ))}
+            <path
+              d={`M 0 ${railY} Q ${railEnd * 0.45} ${railY + 12}, ${railEnd} ${railY}`}
+              stroke={`url(#${gradientId})`}
+              strokeWidth="3"
+              strokeLinecap="round"
+            />
+
+            {/* cabinhos até cada folha */}
+            {leaves.map((leaf, i) => {
+              const parent = parents.get(i);
+              const fromX = parent === undefined ? leaf.x : leaves[parent].x;
+              const fromY = parent === undefined ? railY : leaves[parent].bottom;
+              const endY = leaf.y - 6;
+              const dy = endY - fromY;
+              const d = [
+                `M ${fromX} ${fromY}`,
+                `C ${fromX - 6} ${fromY + dy * 0.45},`,
+                `${leaf.x + 6} ${endY - dy * 0.45},`,
+                `${leaf.x} ${endY}`,
+              ].join(' ');
+              return (
+                <g key={i}>
+                  <path
+                    d={d}
+                    stroke={color}
+                    strokeOpacity={leaf.blocked ? 0.28 : 0.6}
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                  <circle
+                    cx={fromX}
+                    cy={fromY}
+                    r="2.4"
+                    fill={color}
+                    fillOpacity={leaf.blocked ? 0.25 : 0.7}
+                  />
+                </g>
+              );
+            })}
           </>
         )}
       </svg>
