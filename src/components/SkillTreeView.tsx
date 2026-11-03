@@ -44,19 +44,19 @@ const STATUS_EMOJI: Record<LeafStatus, string> = {
   dominated: '🌸',
 };
 
-/** Paleta botânica */
+/** Paleta do desenho de referência: contorno verde, galhos tan, fundo branco. */
 const PALETTE = {
-  moss: '#5F7A43',
-  mossDeep: '#3E4C30',
-  mossSoft: '#6E8352',
-  terracotta: '#B5603F',
-  gold: '#C9A24A',
-  goldDeep: '#A8812F',
-  cream: '#FAF7F2',
-  creamDeep: '#F3EDE0',
-  bark: '#E8E0D2',
-  ink: '#2B2A22',
-  inkSoft: '#6B6555',
+  moss: '#548C6A',
+  mossDeep: '#3D6B50',
+  mossSoft: '#7BA98C',
+  terracotta: '#A98C63',
+  gold: '#B09B7A',
+  goldDeep: '#8A7554',
+  cream: '#FCFBF7',
+  creamDeep: '#F4EFE6',
+  bark: '#E4DCCD',
+  ink: '#3A362F',
+  inkSoft: '#7B7367',
 };
 
 /** Status derivado: dominada > em progresso > bloqueada (anterior não dominada). */
@@ -122,36 +122,39 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
     <div className="relative max-w-4xl mx-auto">
       {/* COPA — topo do tronco */}
       <div
-        className="relative rounded-[28px] px-6 py-5 text-white shadow-md overflow-hidden"
-        style={{ background: `linear-gradient(150deg, ${PALETTE.mossSoft} 0%, ${PALETTE.mossDeep} 100%)` }}
+        className="relative rounded-[28px] px-6 py-5 overflow-hidden border-2 bg-white"
+        style={{ borderColor: PALETTE.gold }}
       >
-        <div className="absolute inset-0 opacity-10 text-[100px] leading-none flex items-center justify-center select-none">
+        <div className="absolute inset-0 opacity-[0.05] text-[100px] leading-none flex items-center justify-center select-none">
           🌳
         </div>
         <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
-            <span className="text-[11px] uppercase tracking-widest font-bold" style={{ color: '#EADFC0' }}>
+            <span className="text-[11px] uppercase tracking-widest font-bold" style={{ color: PALETTE.moss }}>
               Arbre de compétences • Tronco
             </span>
-            <h3 className="font-cormorant text-3xl font-bold">
+            <h3 className="font-cormorant text-3xl font-bold" style={{ color: PALETTE.ink }}>
               Francês A1 → A2
             </h3>
-            <p className="text-xs" style={{ color: '#E6E8D5' }}>
+            <p className="text-xs" style={{ color: PALETTE.inkSoft }}>
               {treeComplete
                 ? '🌳 A árvore inteira floresceu ! Magnifique !'
                 : `${dominatedCount} de ${leaves.length} folhas dominadas — continue, chaque feuille compte !`}
             </p>
           </div>
           <div className="text-right space-y-1 shrink-0">
-            <div className="text-3xl font-bold font-cormorant" style={{ color: '#F6E7B4' }}>
+            <div className="text-3xl font-bold font-cormorant" style={{ color: PALETTE.moss }}>
               {leaves.length > 0 ? Math.round((dominatedCount / leaves.length) * 100) : 0}%
             </div>
-            <div className="w-36 h-2.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.18)' }}>
+            <div
+              className="w-36 h-2.5 rounded-full overflow-hidden border"
+              style={{ background: PALETTE.creamDeep, borderColor: PALETTE.bark }}
+            >
               <div
                 className="h-full rounded-full transition-all duration-500"
                 style={{
                   width: `${leaves.length > 0 ? (dominatedCount / leaves.length) * 100 : 0}%`,
-                  background: `linear-gradient(90deg, ${PALETTE.gold}, #F2D98F)`,
+                  background: PALETTE.moss,
                 }}
               />
             </div>
@@ -175,24 +178,19 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
               <div key={branch.id} className="relative">
                 <div
                   data-branch-card
-                  data-branch-color={branch.color}
                   data-branch-complete={branchComplete ? 'true' : 'false'}
-                  className={`relative rounded-3xl border p-4 sm:p-5 shadow-2xs transition-all ${
-                    branchComplete
-                      ? 'border-[#D9B45E] ring-2 ring-[#D9B45E]/30'
-                      : 'border-[#E8E0D2] bg-white'
-                  }`}
+                  className="relative rounded-3xl border bg-white p-4 sm:p-5 transition-all"
                   style={
                     branchComplete
-                      ? { background: 'linear-gradient(135deg, #FFFDF5 0%, #F6EFDA 100%)' }
-                      : undefined
+                      ? { borderColor: PALETTE.moss, boxShadow: `0 0 0 3px ${PALETTE.moss}1F` }
+                      : { borderColor: PALETTE.bark }
                   }
                 >
                   {/* Cabeçalho do galho */}
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl shrink-0"
-                      style={{ backgroundColor: `${branch.color}14`, border: `1.5px solid ${branch.color}40` }}
+                      className="w-11 h-11 rounded-full flex items-center justify-center text-xl shrink-0"
+                      style={{ border: `1.5px solid ${PALETTE.moss}` }}
                     >
                       {branch.icon}
                     </div>
@@ -207,15 +205,15 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
                     </div>
                     {branchComplete ? (
                       <span
-                        className="text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0 border"
-                        style={{ backgroundColor: '#FBF1D4', color: PALETTE.goldDeep, borderColor: '#E3CD93' }}
+                        className="text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0 border bg-white"
+                        style={{ color: PALETTE.moss, borderColor: PALETTE.moss }}
                       >
                         🍎 Galho completo !
                       </span>
                     ) : (
                       <span
-                        className="text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0"
-                        style={{ backgroundColor: `${branch.color}12`, color: branch.color }}
+                        className="text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0 border bg-white"
+                        style={{ color: PALETTE.goldDeep, borderColor: PALETTE.bark }}
                       >
                         {branchLeaves.length - branchDominated} restantes
                       </span>
@@ -223,7 +221,7 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
                   </div>
 
                   {/* FOLHAS — cards pendurados no galho (ramos desenhados em SVG) */}
-                  <LeafSprigs color={branch.color}>
+                  <LeafSprigs>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-6">
                     {branchLeaves.map((leaf, i) => {
                       const status = getLeafStatus(leaf, leaves, progress);
@@ -243,12 +241,10 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
                             }`}
                             style={
                               done
-                                ? { backgroundColor: '#F1F6E9', borderColor: '#CFDDBF' }
+                                ? { backgroundColor: '#FFFFFF', borderColor: PALETTE.moss }
                                 : wip
-                                  ? { backgroundColor: '#FDF7E6', borderColor: '#E8D6A4' }
-                                  : blocked
-                                    ? { backgroundColor: '#F6F2EA', borderColor: PALETTE.bark }
-                                    : { backgroundColor: '#FFFFFF', borderColor: PALETTE.bark }
+                                  ? { backgroundColor: '#FFFFFF', borderColor: PALETTE.gold }
+                                  : { backgroundColor: '#FFFFFF', borderColor: PALETTE.bark }
                             }
                           >
                             <div className="flex items-start justify-between gap-2">
@@ -256,8 +252,10 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
                                 className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
                                 style={
                                   done
-                                    ? { backgroundColor: PALETTE.moss, color: 'white' }
-                                    : { backgroundColor: `${branch.color}14`, color: branch.color }
+                                    ? { border: `1.5px solid ${PALETTE.moss}`, color: PALETTE.moss }
+                                    : blocked
+                                      ? { border: `1.5px solid ${PALETTE.bark}`, color: '#A9A29A' }
+                                      : { border: `1.5px solid ${PALETTE.gold}`, color: PALETTE.goldDeep }
                                 }
                               >
                                 {done ? <Check className="w-3.5 h-3.5" /> : blocked ? <Lock className="w-3 h-3" /> : i + 1}
@@ -276,9 +274,9 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
                             <span className="inline-flex items-center gap-1 mt-2 text-[10px] font-bold uppercase tracking-wide">
                               {done && <span style={{ color: PALETTE.moss }}>Dominada</span>}
                               {wip && <span style={{ color: PALETTE.goldDeep }}>Em progresso</span>}
-                              {blocked && <span style={{ color: '#8C7A6B' }}>Bloqueada</span>}
+                              {blocked && <span style={{ color: '#A9A29A' }}>Bloqueada</span>}
                               {status === 'available' && (
-                                <span style={{ color: branch.color }}>Disponível</span>
+                                <span style={{ color: PALETTE.moss }}>Disponível</span>
                               )}
                             </span>
                           </button>
@@ -302,7 +300,7 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
       {(toast || newBadgeToast) && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-fadeIn space-y-2">
           {newBadgeToast && (
-            <div className="bg-white rounded-2xl border-2 shadow-xl px-5 py-3 flex items-center gap-3" style={{ borderColor: '#D9B45E' }}>
+            <div className="bg-white rounded-2xl border-2 shadow-xl px-5 py-3 flex items-center gap-3" style={{ borderColor: PALETTE.moss }}>
               <span className="text-3xl">{newBadgeToast.icon}</span>
               <div>
                 <p className="text-[11px] uppercase font-bold tracking-wide" style={{ color: PALETTE.goldDeep }}>
@@ -362,7 +360,7 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
                   <ul className="space-y-1">
                     {selectedLeaf.contents.map((c, i) => (
                       <li key={i} className="text-xs flex items-start gap-1.5" style={{ color: PALETTE.ink }}>
-                        <Sprout className="w-3 h-3 mt-0.5 shrink-0" style={{ color: branch?.color }} />
+                        <Sprout className="w-3 h-3 mt-0.5 shrink-0" style={{ color: PALETTE.moss }} />
                         <span>{c}</span>
                       </li>
                     ))}
@@ -428,7 +426,7 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
                     type="button"
                     onClick={() => handleMarkInProgress(selectedLeaf)}
                     className="flex-1 py-2.5 rounded-xl border text-xs font-bold transition-colors"
-                    style={{ borderColor: '#E8D6A4', backgroundColor: '#FDF7E6', color: PALETTE.goldDeep }}
+                    style={{ borderColor: PALETTE.gold, backgroundColor: '#FFFFFF', color: PALETTE.goldDeep }}
                   >
                     🌱 Estou praticando
                   </button>
@@ -443,8 +441,8 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
                   </button>
                 </div>
               ) : (
-                <div className="rounded-xl p-3 border text-center" style={{ backgroundColor: '#F1F6E9', borderColor: '#CFDDBF' }}>
-                  <p className="text-xs font-bold" style={{ color: '#4C6B3C' }}>
+                <div className="rounded-xl p-3 border text-center bg-white" style={{ borderColor: PALETTE.moss }}>
+                  <p className="text-xs font-bold" style={{ color: PALETTE.moss }}>
                     🌸 Feuille dominée le {new Date(progress[selectedLeaf.id]?.date ?? '').toLocaleDateString('pt-BR')} — Beau travail !
                   </p>
                 </div>
