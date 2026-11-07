@@ -1,14 +1,19 @@
-const CACHE_NAME = 'fam-cache-v1';
+// CACHE_NAME versionado: ao subir uma versão nova, os caches antigos são apagados
+// no "activate", garantindo que o app no celular receba os arquivos atualizados.
+const CACHE_NAME = 'fam-cache-v2';
+
+// Apenas arquivos estáticos que não mudam de nome entre versões.
+// Não pré-cacheamos '/' nem '/index.html' para não servir HTML antigo.
 const PRECACHE_ASSETS = [
-  '/',
-  '/index.html',
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
   '/apple-touch-icon.png',
   '/hero.png',
   '/debutant.jpg',
-  '/intermediaire.jpg'
+  '/intermediaire.jpg',
+  '/perfil.jpg',
+  '/sobre.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -33,34 +38,39 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// A página pede a ativação imediata quando o usuário toca em "Atualizar".
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener('fetch', (event) => {
-  // Only cache GET requests
+  // Apenas requisições GET do próprio app (fontes/CDNs seguem direto para a rede).
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
 
-  // For app navigation, use network first, fallback to cached index.html
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match('/index.html'))
-    );
-    return;
-  }
-
-  // Stale-while-revalidate for assets
+  // Rede primeiro: com conexão, o app sempre carrega a versão mais recente.
+  // O cache fica apenas como reserva para uso offline.
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache);
           });
         }
         return networkResponse;
-      }).catch(() => cachedResponse);
-
-      return cachedResponse || fetchPromise;
-    })
+      })
+      .catch(() =>
+        caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) return cachedResponse;
+          if (event.request.mode === 'navigate') return caches.match('/');
+          return Response.error();
+        })
+      )
   );
 });

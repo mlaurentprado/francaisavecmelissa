@@ -15,6 +15,7 @@ import {
 import { speechService } from '../services/speech';
 import { speechRecognitionService, PronunciationResult } from '../services/speechRecognition';
 import { getWhatsAppQuestionUrl } from '../services/whatsapp';
+import { ModuleBadge } from './ModuleBadge';
 import confetti from 'canvas-confetti';
 
 interface FlashcardsViewProps {
@@ -130,7 +131,7 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Category selector pills */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar text-xs font-medium">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar scroll-fade text-xs font-medium">
         <button
           onClick={() => handleCategoryChange('all')}
           className={`px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap ${
@@ -163,6 +164,7 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
           <span className="uppercase tracking-wide">Nível {currentLevel}</span>
           <span>•</span>
           <span className="text-[#0F172A]">{currentCard.category}</span>
+          {currentCard.fromModule && <ModuleBadge />}
         </div>
         <div>
           Cartão {currentIndex + 1} de {filteredCards.length}

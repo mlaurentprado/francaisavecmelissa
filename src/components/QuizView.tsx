@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { QuizQuestion, Level } from '../types';
 import { CheckCircle2, XCircle, Sparkles, ArrowRight, RotateCcw, Trophy, MessageCircle } from 'lucide-react';
 import { getWhatsAppQuestionUrl } from '../services/whatsapp';
+import { ModuleBadge } from './ModuleBadge';
 import confetti from 'canvas-confetti';
 
 interface QuizViewProps {
@@ -134,6 +135,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
           <span className="uppercase tracking-wide">Nível {currentLevel}</span>
           <span>•</span>
           <span className="text-[#0F172A]">{currentQ.category}</span>
+          {currentQ.fromModule && <ModuleBadge />}
         </div>
         <div>
           Questão {currentIndex + 1} de {questions.length}

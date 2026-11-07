@@ -153,9 +153,8 @@ export const StudentLoginModal: React.FC<StudentLoginModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#0F172A] mb-1.5 flex items-center justify-between">
+              <label className="block text-xs font-bold text-[#0F172A] mb-1.5">
                 <span>Seu PIN (4 dígitos) :</span>
-                <span className="text-[10px] text-[#78644E] font-normal">Padrão de teste: 1234</span>
               </label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-[#8C7A6B] absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -185,9 +184,8 @@ export const StudentLoginModal: React.FC<StudentLoginModalProps> = ({
         {role === 'teacher' && (
           <form onSubmit={handleTeacherSubmit} className="space-y-4 text-left">
             <div>
-              <label className="block text-xs font-bold text-[#0F172A] mb-1.5 flex items-center justify-between">
+              <label className="block text-xs font-bold text-[#0F172A] mb-1.5">
                 <span>Senha da Professora Melissa :</span>
-                <span className="text-[10px] text-[#78644E] font-normal">Senha de teste: melissa2026</span>
               </label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-[#8C7A6B] absolute left-3.5 top-1/2 -translate-y-1/2" />

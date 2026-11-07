@@ -1,6 +1,63 @@
 export type Level = 'A1' | 'A2' | 'B1' | 'C1';
 
-export type TabType = 'flashcards' | 'quiz' | 'dictee' | 'fiches' | 'revisions' | 'portal';
+export type TabType = 'flashcards' | 'quiz' | 'dictee' | 'fiches' | 'revisions' | 'portal' | 'skilltree';
+
+// --- Árvore de Habilidades & Conquistas ---
+
+export type SkillAbility = 'ouvir' | 'falar' | 'ler' | 'escrever';
+export type LinkedActivity = 'flashcards' | 'quiz' | 'dictee';
+
+/** FOLHA — micro-habilidade / conteúdo (ex: "Verbo être"). */
+export interface SkillLeaf {
+  id: string;
+  branchId: string;
+  title: string;
+  description: string;
+  /** Lista de conteúdos (vocabulário, regras, exemplos). */
+  contents: string[];
+  /** Habilidades trabalhadas. */
+  skills: SkillAbility[];
+  /** Atividades vinculadas do app. */
+  linkedActivities: LinkedActivity[];
+  /** Critério de check (ex: "80% no quiz + 10 flashcards"). */
+  criterion: string;
+  level: Level;
+  order: number;
+}
+
+/** GALHO — macro-habilidade (ex: "Gramática"). */
+export interface SkillBranch {
+  id: string;
+  name: string;
+  /** Emoji/ícone. */
+  icon: string;
+  /** Cor base em hex (ex: #8B2626). */
+  color: string;
+  order: number;
+  level: Level;
+}
+
+export type SkillBadgeKind = 'branch' | 'tree' | 'streak' | 'milestone' | 'performance';
+
+/** BADGE — conquista desbloqueável. */
+export interface AchievementBadge {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  /** Texto amigável da condição (ex: "concluir todas as folhas do galho Gramática"). */
+  condition: string;
+  kind: SkillBadgeKind;
+  branchId?: string;
+  threshold?: number;
+}
+
+export type LeafStatus = 'blocked' | 'available' | 'in_progress' | 'dominated';
+
+export interface LeafProgress {
+  status: 'in_progress' | 'dominated';
+  date: string;
+}
 
 export interface LevelConfig {
   id: Level;
@@ -23,6 +80,7 @@ export interface Flashcard {
   exampleFr: string;
   examplePt: string;
   tip?: string;
+  fromModule?: boolean;
 }
 
 export interface QuizQuestion {
@@ -36,6 +94,7 @@ export interface QuizQuestion {
   correctIndex: number;
   explanation: string;
   melissaTip?: string;
+  fromModule?: boolean;
 }
 
 export interface DicteeItem {
@@ -45,6 +104,7 @@ export interface DicteeItem {
   translation: string;
   hint: string;
   difficulty: 'facile' | 'moyen' | 'avance';
+  fromModule?: boolean;
 }
 
 export interface FicheGrammaire {
@@ -58,6 +118,18 @@ export interface FicheGrammaire {
     examples: { fr: string; pt: string }[];
   }[];
   melissaAdvice: string;
+}
+
+export type ActivityType = 'quiz' | 'dictee' | 'flashcards';
+
+export interface StudentActivityRecord {
+  id: string;
+  type: ActivityType;
+  title: string;
+  score?: number; // acertos (quizzes)
+  total?: number; // total de perguntas (quizzes)
+  points: number; // pontos ganhos na atividade
+  at: string; // ISO date
 }
 
 export interface StudentProgress {
@@ -108,6 +180,7 @@ export interface StudentProfile {
   streakDays: number;
   completedWeekIds: string[];
   registeredAt: string;
+  activityLog?: StudentActivityRecord[];
   payment?: StudentPaymentInfo;
 }
 
