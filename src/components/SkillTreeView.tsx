@@ -16,7 +16,6 @@ interface SkillTreeViewProps {
   branches: SkillBranch[];
   leaves: SkillLeaf[];
   progress: Record<string, LeafProgress>;
-  unlockedBadges: Record<string, string>;
   currentLevel: Level;
   onMarkInProgress: (leafId: string) => void;
   onMarkDominated: (leafId: string) => AchievementBadge[];
@@ -81,7 +80,6 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
   branches,
   leaves,
   progress,
-  unlockedBadges,
   onMarkInProgress,
   onMarkDominated,
   onSelectTab,
@@ -125,9 +123,6 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
         className="relative rounded-[28px] px-6 py-5 overflow-hidden border-2 bg-white"
         style={{ borderColor: PALETTE.gold }}
       >
-        <div className="absolute inset-0 opacity-[0.05] text-[100px] leading-none flex items-center justify-center select-none">
-          🌳
-        </div>
         <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <span className="text-[11px] uppercase tracking-widest font-bold" style={{ color: PALETTE.moss }}>
@@ -254,7 +249,7 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
                                   done
                                     ? { border: `1.5px solid ${PALETTE.moss}`, color: PALETTE.moss }
                                     : blocked
-                                      ? { border: `1.5px solid ${PALETTE.bark}`, color: '#A9A29A' }
+                                      ? { border: `1.5px solid ${PALETTE.bark}`, color: PALETTE.inkSoft }
                                       : { border: `1.5px solid ${PALETTE.gold}`, color: PALETTE.goldDeep }
                                 }
                               >
@@ -274,7 +269,7 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
                             <span className="inline-flex items-center gap-1 mt-2 text-[10px] font-bold uppercase tracking-wide">
                               {done && <span style={{ color: PALETTE.moss }}>Dominada</span>}
                               {wip && <span style={{ color: PALETTE.goldDeep }}>Em progresso</span>}
-                              {blocked && <span style={{ color: '#A9A29A' }}>Bloqueada</span>}
+                              {blocked && <span style={{ color: PALETTE.inkSoft }}>Bloqueada</span>}
                               {status === 'available' && (
                                 <span style={{ color: PALETTE.moss }}>Disponível</span>
                               )}

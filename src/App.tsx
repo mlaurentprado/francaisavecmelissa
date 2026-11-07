@@ -452,7 +452,6 @@ export function App() {
                       branches={skillBranches}
                       leaves={skillLeaves}
                       progress={skillProgress}
-                      unlockedBadges={unlockedBadges}
                       currentLevel={currentLevel}
                       onMarkInProgress={handleSkillInProgress}
                       onMarkDominated={handleSkillDominated}

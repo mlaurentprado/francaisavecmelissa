@@ -21,7 +21,7 @@ type Curve = [Point, Point, Point, Point];
 
 /** Uma linha do tronco: desce com leve ondulação e converge na base. */
 function trunkLine(xTop: number, xBottom: number, height: number, wobble: number): string {
-  const top = -28;
+  const top = 0;
   const steps = Math.max(3, Math.round((height - top) / 180));
   let d = `M ${xTop} ${top}`;
   for (let i = 1; i <= steps; i++) {
