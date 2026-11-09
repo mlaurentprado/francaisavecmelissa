@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { QuizQuestion, Level } from '../types';
 import { CheckCircle2, XCircle, Sparkles, ArrowRight, RotateCcw, Trophy, MessageCircle } from 'lucide-react';
 import { getWhatsAppQuestionUrl } from '../services/whatsapp';
-import { ModuleBadge } from './ModuleBadge';
+import { StudyStatusBar } from './StudyStatusBar';
 import confetti from 'canvas-confetti';
 
 interface QuizViewProps {
@@ -129,18 +129,12 @@ export const QuizView: React.FC<QuizViewProps> = ({
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Header bar */}
-      <div className="flex items-center justify-between text-xs text-[#78644E] font-semibold px-2">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#8B2626]"></span>
-          <span className="uppercase tracking-wide">Nível {currentLevel}</span>
-          <span>•</span>
-          <span className="text-[#0F172A]">{currentQ.category}</span>
-          {currentQ.fromModule && <ModuleBadge />}
-        </div>
-        <div>
-          Questão {currentIndex + 1} de {questions.length}
-        </div>
-      </div>
+      <StudyStatusBar
+        currentLevel={currentLevel}
+        label={currentQ.category}
+        fromModule={currentQ.fromModule}
+        counter={`Questão ${currentIndex + 1} de ${questions.length}`}
+      />
 
       {/* Progress line */}
       <div className="w-full bg-[#EBE4D8] h-2 rounded-full overflow-hidden">

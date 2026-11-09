@@ -55,9 +55,9 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="h-16 sm:h-18 flex items-center justify-between gap-4">
           {/* Brand Logo with golden sparkle ✦ */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 shrink-0">
             <div className="flex items-center gap-1.5 cursor-pointer group" onClick={() => onSelectTab('flashcards')}>
-              <span className="font-cormorant text-lg sm:text-xl font-bold text-[#0F172A] tracking-normal group-hover:text-[#8B2626] transition-colors">
+              <span className="font-cormorant text-lg sm:text-xl font-bold text-[#0F172A] tracking-normal whitespace-nowrap group-hover:text-[#8B2626] transition-colors">
                 Français avec Melissa
               </span>
               <span className="text-[#C59B27] text-base select-none">✦</span>
@@ -68,7 +68,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Desktop Navigation Tabs */}
-          <nav className="hidden md:flex items-center gap-4 lg:gap-6 text-sm font-medium text-[#4B5563]">
+          <nav className="hidden 2xl:flex items-center gap-4 lg:gap-6 text-sm font-medium text-[#4B5563]">
             {/* Espaço do Aluno Portal Tab */}
             <button
               onClick={() => {
@@ -243,7 +243,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Mobile Navigation Bar — rola na horizontal com os nomes completos */}
-        <div className="md:hidden border-t border-[#EBE4D8] py-2">
+        <div className="2xl:hidden border-t border-[#EBE4D8] py-2">
           <div
             ref={mobileNavRef}
             className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-fade text-xs font-semibold"

@@ -11,6 +11,7 @@ import {
 import { speechService } from '../services/speech';
 import { speechRecognitionService, PronunciationResult } from '../services/speechRecognition';
 import { getWhatsAppQuestionUrl } from '../services/whatsapp';
+import { StudyStatusBar } from './StudyStatusBar';
 
 interface RevisionsViewProps {
   cards: Flashcard[];
@@ -58,7 +59,9 @@ export const RevisionsView: React.FC<RevisionsViewProps> = ({
 
   if (reviewCards.length === 0) {
     return (
-      <div className="max-w-xl mx-auto bg-white rounded-3xl border border-[#EBE4D8] p-8 sm:p-10 text-center space-y-5 shadow-sm">
+      <div className="max-w-xl mx-auto space-y-6">
+      <StudyStatusBar currentLevel={currentLevel} label="Plano de revisão" counter="0 itens" />
+      <div className="bg-white rounded-3xl border border-[#EBE4D8] p-8 sm:p-10 text-center space-y-5 shadow-sm">
         <div className="w-16 h-16 mx-auto rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-200/60 shadow-2xs">
           <BookmarkCheck className="w-8 h-8" />
         </div>
@@ -79,24 +82,23 @@ export const RevisionsView: React.FC<RevisionsViewProps> = ({
           Explorar novos Flashcards
         </button>
       </div>
+      </div>
     );
   }
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      <StudyStatusBar
+        currentLevel={currentLevel}
+        label="Plano de revisão"
+        counter={`${reviewCards.length} ${reviewCards.length === 1 ? 'item' : 'itens'}`}
+      />
+
       {/* Intro header */}
       <div className="bg-[#FAF7F2] rounded-2xl p-5 border border-[#EBE4D8] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h3 className="font-cormorant text-2xl font-bold text-[#0F172A] flex items-center gap-2">
-            <span>Meu Plano de Revisão</span>
-            <span className="text-xs font-sans px-2.5 py-0.5 rounded-full bg-[#8B2626] text-white font-bold">
-              {reviewCards.length} {reviewCards.length === 1 ? 'item' : 'itens'}
-            </span>
-          </h3>
-          <p className="text-xs text-[#5A6578]">
-            Estude estes termos antes da sua próxima aula com a Melissa para consolidar sua memória.
-          </p>
-        </div>
+        <p className="text-xs text-[#5A6578]">
+          Estude estes termos antes da sua próxima aula com a Melissa para consolidar sua memória.
+        </p>
 
         <button
           type="button"

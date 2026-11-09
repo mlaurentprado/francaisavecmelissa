@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FicheGrammaire, Level } from '../types';
 import { Sparkles, ChevronDown, ChevronUp, Volume2 } from 'lucide-react';
 import { speechService } from '../services/speech';
+import { StudyStatusBar } from './StudyStatusBar';
 
 interface FichesViewProps {
   fiches: FicheGrammaire[];
@@ -24,6 +25,12 @@ export const FichesView: React.FC<FichesViewProps> = ({ fiches, currentLevel }) 
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      <StudyStatusBar
+        currentLevel={currentLevel}
+        label="Fiches Mémo"
+        counter={`${filteredFiches.length} ${filteredFiches.length === 1 ? 'ficha' : 'fichas'}`}
+      />
+
       {/* Banner inspired by Screenshot 3 (Deep Navy & Gold) */}
       <div className="bg-[#0F1E36] text-white rounded-3xl p-6 sm:p-8 shadow-sm relative overflow-hidden">
         <div className="relative z-10 space-y-2 max-w-xl">

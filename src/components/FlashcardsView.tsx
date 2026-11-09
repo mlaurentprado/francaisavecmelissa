@@ -15,7 +15,7 @@ import {
 import { speechService } from '../services/speech';
 import { speechRecognitionService, PronunciationResult } from '../services/speechRecognition';
 import { getWhatsAppQuestionUrl } from '../services/whatsapp';
-import { ModuleBadge } from './ModuleBadge';
+import { StudyStatusBar } from './StudyStatusBar';
 import confetti from 'canvas-confetti';
 
 interface FlashcardsViewProps {
@@ -158,18 +158,12 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
       </div>
 
       {/* Progress & Card info */}
-      <div className="flex items-center justify-between text-xs text-[#78644E] font-semibold px-2">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#8B2626]"></span>
-          <span className="uppercase tracking-wide">Nível {currentLevel}</span>
-          <span>•</span>
-          <span className="text-[#0F172A]">{currentCard.category}</span>
-          {currentCard.fromModule && <ModuleBadge />}
-        </div>
-        <div>
-          Cartão {currentIndex + 1} de {filteredCards.length}
-        </div>
-      </div>
+      <StudyStatusBar
+        currentLevel={currentLevel}
+        label={currentCard.category}
+        fromModule={currentCard.fromModule}
+        counter={`Cartão ${currentIndex + 1} de ${filteredCards.length}`}
+      />
 
       {/* Flashcard 3D container */}
       <div
