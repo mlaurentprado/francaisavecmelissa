@@ -37,9 +37,15 @@ Professora** (aba "Árvore") ou, se preferir, editando um único arquivo.
 | `contents` | lista de textos | `["Conjugação", "Frases de apresentação"]` |
 | `skills` | lista: `ouvir` `falar` `ler` `escrever` | `["falar", "ler"]` |
 | `linkedActivities` | lista: `flashcards` `quiz` `dictee` | `["quiz", "flashcards"]` |
+| `categories` | categorias de flashcards/quizzes que são os **exercícios da folha** (opcional) | `["Salutations & Politesse"]` |
 | `criterion` | critério de check | `"80% no quiz + 10 flashcards"` |
 | `level` | nível | `A1` |
 | `order` | número (ordem dentro do galho; desbloqueia em sequência) | `2` |
+
+**Exercícios dentro da folha** — ao abrir uma folha na árvore, o aluno já pratica ali os flashcards e
+quizzes dela. Basta preencher `categories` com os nomes exatos das categorias (o painel da Árvore
+mostra a lista pronta para clicar). Atalho: se você criar um flashcard/quiz cuja categoria é
+exatamente o título da folha (ex.: `Verbo être`), ele entra na folha automaticamente.
 
 | Campo (BADGE) | Tipo | Exemplo |
 |---|---|---|
@@ -98,6 +104,7 @@ com o código; CSV/planilha perderia listas e emojis com facilidade).
   contents: ['Vocabulário do métro', 'Pedir informações'],
   skills: ['ouvir', 'falar'],
   linkedActivities: ['flashcards', 'dictee'],
+  categories: ['Métro & Direction'],
   criterion: 'Completar 2 dictées de transporte',
   level: 'A2',
   order: 1,

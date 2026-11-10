@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Level, SkillAbility, SkillBranch, SkillLeaf, LinkedActivity } from '../../types';
 import { skillTreeService } from '../../services/skillTreeService';
+import { flashcardService } from '../../services/flashcardService';
+import { quizService } from '../../services/quizService';
 import { Plus, Edit2, Trash2, TreePine, X, Layers } from 'lucide-react';
 
 interface TeacherSkillTreeManagerProps {
@@ -23,6 +25,8 @@ interface LeafForm {
   contents: string;
   skills: SkillAbility[];
   linkedActivities: LinkedActivity[];
+  /** Categorias de conteúdo que são os exercícios desta folha (separadas por " | "). */
+  categories: string;
   criterion: string;
   level: Level;
   order: number;
@@ -56,6 +60,7 @@ const EMPTY_LEAF_FORM: LeafForm = {
   contents: '',
   skills: [],
   linkedActivities: [],
+  categories: '',
   criterion: '',
   level: 'A1',
   order: 10,
@@ -113,6 +118,7 @@ export const TeacherSkillTreeManager: React.FC<TeacherSkillTreeManagerProps> = (
             contents: leaf.contents.join(' | '),
             skills: leaf.skills,
             linkedActivities: leaf.linkedActivities,
+            categories: (leaf.categories ?? []).join(' | '),
             criterion: leaf.criterion,
             level: leaf.level,
             order: leaf.order,
@@ -135,6 +141,10 @@ export const TeacherSkillTreeManager: React.FC<TeacherSkillTreeManagerProps> = (
         .filter(Boolean),
       skills: leafForm.skills,
       linkedActivities: leafForm.linkedActivities,
+      categories: leafForm.categories
+        .split('|')
+        .map((c) => c.trim())
+        .filter(Boolean),
       criterion: leafForm.criterion.trim(),
       level: leafForm.level,
       order: leafForm.order,
@@ -162,6 +172,27 @@ export const TeacherSkillTreeManager: React.FC<TeacherSkillTreeManagerProps> = (
       skills: f.skills.includes(s) ? f.skills.filter((x) => x !== s) : [...f.skills, s],
     }));
   };
+
+  const toggleCategory = (category: string) => {
+    setLeafForm((f) => {
+      const list = f.categories.split('|').map((c) => c.trim()).filter(Boolean);
+      const next = list.includes(category) ? list.filter((c) => c !== category) : [...list, category];
+      return { ...f, categories: next.join(' | ') };
+    });
+  };
+
+  /** Categorias que existem hoje nos flashcards e quizzes (conteúdo fixo + da professora). */
+  const availableCategories = React.useMemo(
+    () =>
+      leafModalOpen
+        ? Array.from(
+            new Set(
+              [...flashcardService.getFlashcards(), ...quizService.getQuizzes()].map((item) => item.category)
+            )
+          ).sort((a, b) => a.localeCompare(b))
+        : [],
+    [leafModalOpen]
+  );
 
   const toggleActivity = (a: LinkedActivity) => {
     setLeafForm((f) => ({
@@ -505,6 +536,46 @@ export const TeacherSkillTreeManager: React.FC<TeacherSkillTreeManagerProps> = (
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#0F172A] mb-1">
+                  Exercícios desta folha (categorias) :
+                </label>
+                <input
+                  type="text"
+                  value={leafForm.categories}
+                  onChange={(e) => setLeafForm({ ...leafForm, categories: e.target.value })}
+                  placeholder="Salutations & Politesse | Au Café & Restaurant"
+                  className="w-full p-2.5 rounded-xl border border-[#D4C8B8] outline-none text-xs bg-[#FAF7F2]/50"
+                />
+                <p className="text-[10px] text-[#5A6578] mt-1">
+                  Separe com " | ". O aluno pratica esses flashcards e quizzes dentro da folha.
+                </p>
+                {availableCategories.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {availableCategories.map((cat) => {
+                      const selected = leafForm.categories
+                        .split('|')
+                        .map((c) => c.trim())
+                        .includes(cat);
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => toggleCategory(cat)}
+                          className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
+                            selected
+                              ? 'bg-[#548C6A] text-white border-[#548C6A]'
+                              : 'bg-white text-[#5A6578] border-[#D4C8B8] hover:bg-[#F4EFE6]'
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-2">

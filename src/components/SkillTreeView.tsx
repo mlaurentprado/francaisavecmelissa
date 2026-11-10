@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import {
   AchievementBadge,
+  Flashcard,
   LeafProgress,
   LeafStatus,
   Level,
+  QuizQuestion,
   SkillBranch,
   SkillLeaf,
   TabType,
@@ -11,12 +13,22 @@ import {
 import { Lock, Sprout, Flower2, Check, X, Sparkles, Eye, Ear, MessageSquare, PenLine } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { LeafSprigs, TreeTrunkCanvas } from './SkillTreeConnections';
+import { FlashcardsView } from './FlashcardsView';
+import { QuizView } from './QuizView';
+import { leafFlashcards, leafQuizzes } from '../services/leafPractice';
 
 interface SkillTreeViewProps {
   branches: SkillBranch[];
   leaves: SkillLeaf[];
   progress: Record<string, LeafProgress>;
   currentLevel: Level;
+  /** Conteúdo completo (todos os níveis) — cada folha filtra o que é dela. */
+  cards: Flashcard[];
+  quizzes: QuizQuestion[];
+  knownCardIds: string[];
+  onMarkKnown: (cardId: string) => void;
+  onMarkReview: (cardId: string) => void;
+  onQuizComplete: (score: number, total?: number) => void;
   onMarkInProgress: (leafId: string) => void;
   onMarkDominated: (leafId: string) => AchievementBadge[];
   onSelectTab: (tab: TabType) => void;
@@ -27,12 +39,6 @@ const SKILL_ICON: Record<string, { icon: React.ReactNode; label: string }> = {
   falar: { icon: <MessageSquare className="w-3 h-3" />, label: 'Falar' },
   ler: { icon: <Eye className="w-3 h-3" />, label: 'Ler' },
   escrever: { icon: <PenLine className="w-3 h-3" />, label: 'Escrever' },
-};
-
-const ACTIVITY_LABEL: Record<string, string> = {
-  flashcards: 'Flashcards',
-  quiz: 'Quiz',
-  dictee: 'Dictée',
 };
 
 /** Emoji de estado na ponta de cada folha. */
@@ -80,11 +86,18 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
   branches,
   leaves,
   progress,
+  cards,
+  quizzes,
+  knownCardIds,
+  onMarkKnown,
+  onMarkReview,
+  onQuizComplete,
   onMarkInProgress,
   onMarkDominated,
   onSelectTab,
 }) => {
   const [selectedLeaf, setSelectedLeaf] = useState<SkillLeaf | null>(null);
+  const [practiceMode, setPracticeMode] = useState<'flashcards' | 'quiz'>('flashcards');
   const [toast, setToast] = useState<string | null>(null);
   const [newBadgeToast, setNewBadgeToast] = useState<AchievementBadge | null>(null);
 
@@ -223,6 +236,8 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
                       const done = status === 'dominated';
                       const wip = status === 'in_progress';
                       const blocked = status === 'blocked';
+                      const exerciseCount =
+                        leafFlashcards(leaf, cards).length + leafQuizzes(leaf, quizzes).length;
 
                       return (
                         <div key={leaf.id} className="relative">
@@ -230,7 +245,14 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
                             type="button"
                             data-leaf-card
                             data-leaf-blocked={blocked ? 'true' : 'false'}
-                            onClick={() => setSelectedLeaf(leaf)}
+                            onClick={() => {
+                              setSelectedLeaf(leaf);
+                              setPracticeMode(
+                                leafFlashcards(leaf, cards).length > 0 || leafQuizzes(leaf, quizzes).length === 0
+                                  ? 'flashcards'
+                                  : 'quiz'
+                              );
+                            }}
                             className={`w-full h-full text-left p-3.5 rounded-2xl border transition-all group ${
                               blocked ? 'opacity-60 cursor-not-allowed' : 'hover:shadow-sm'
                             }`}
@@ -274,6 +296,11 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
                                 <span style={{ color: PALETTE.moss }}>Disponível</span>
                               )}
                             </span>
+                            <p className="text-[10px] mt-1" style={{ color: PALETTE.inkSoft }}>
+                              {exerciseCount > 0
+                                ? `🎯 ${exerciseCount} exercício${exerciseCount === 1 ? '' : 's'}`
+                                : 'sem exercícios ainda'}
+                            </p>
                           </button>
                         </div>
                       );
@@ -321,9 +348,11 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
         const status = getLeafStatus(selectedLeaf, leaves, progress);
         const branch = branches.find((b) => b.id === selectedLeaf.branchId);
         const blocked = status === 'blocked';
+        const leafCards = leafFlashcards(selectedLeaf, cards);
+        const leafQuizItems = leafQuizzes(selectedLeaf, quizzes);
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fadeIn">
-            <div className="bg-white rounded-3xl border p-6 max-w-md w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto" style={{ borderColor: PALETTE.bark }}>
+            <div className="bg-white rounded-3xl border p-6 max-w-2xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto" style={{ borderColor: PALETTE.bark }}>
               <div className="flex items-start justify-between gap-3 border-b pb-3" style={{ borderColor: PALETTE.bark }}>
                 <div className="flex items-center gap-2.5">
                   <span className="text-2xl select-none">{branch?.icon}</span>
@@ -378,27 +407,81 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
                 </div>
               )}
 
-              {selectedLeaf.linkedActivities.length > 0 && !blocked && (
-                <div>
-                  <p className="text-[10px] uppercase font-bold tracking-wider mb-1.5" style={{ color: PALETTE.inkSoft }}>
-                    Praticar agora
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedLeaf.linkedActivities.map((act) => (
-                      <button
-                        key={act}
-                        type="button"
-                        onClick={() => {
-                          setSelectedLeaf(null);
-                          onSelectTab(act as TabType);
-                        }}
-                        className="px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors"
-                        style={{ backgroundColor: `${PALETTE.terracotta}12`, color: PALETTE.terracotta, borderColor: `${PALETTE.terracotta}38` }}
-                      >
-                        {ACTIVITY_LABEL[act] ?? act} →
-                      </button>
-                    ))}
+              {!blocked && (leafCards.length > 0 || leafQuizItems.length > 0) && (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-[10px] uppercase font-bold tracking-wider" style={{ color: PALETTE.inkSoft }}>
+                      Exercícios desta folha
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {leafCards.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setPracticeMode('flashcards')}
+                          className="px-3 py-1 rounded-xl text-xs font-bold border transition-colors"
+                          style={
+                            practiceMode === 'flashcards' || leafQuizItems.length === 0
+                              ? { backgroundColor: PALETTE.moss, color: '#FFFFFF', borderColor: PALETTE.moss }
+                              : { backgroundColor: '#FFFFFF', color: PALETTE.mossDeep, borderColor: PALETTE.bark }
+                          }
+                        >
+                          Flashcards ({leafCards.length})
+                        </button>
+                      )}
+                      {leafQuizItems.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setPracticeMode('quiz')}
+                          className="px-3 py-1 rounded-xl text-xs font-bold border transition-colors"
+                          style={
+                            practiceMode === 'quiz'
+                              ? { backgroundColor: PALETTE.moss, color: '#FFFFFF', borderColor: PALETTE.moss }
+                              : { backgroundColor: '#FFFFFF', color: PALETTE.mossDeep, borderColor: PALETTE.bark }
+                          }
+                        >
+                          Quiz ({leafQuizItems.length})
+                        </button>
+                      )}
+                    </div>
                   </div>
+
+                  {practiceMode === 'quiz' && leafQuizItems.length > 0 ? (
+                    <QuizView
+                      questions={leafQuizItems}
+                      currentLevel={selectedLeaf.level}
+                      onQuizComplete={onQuizComplete}
+                    />
+                  ) : (
+                    <FlashcardsView
+                      cards={leafCards}
+                      currentLevel={selectedLeaf.level}
+                      knownCardIds={knownCardIds}
+                      onMarkKnown={onMarkKnown}
+                      onMarkReview={onMarkReview}
+                    />
+                  )}
+                </div>
+              )}
+
+              {!blocked && leafCards.length === 0 && leafQuizItems.length === 0 && (
+                <div className="rounded-xl p-3 border space-y-1.5" style={{ backgroundColor: PALETTE.cream, borderColor: PALETTE.bark }}>
+                  <p className="text-xs font-semibold" style={{ color: PALETTE.ink }}>
+                    Esta folha ainda não tem exercícios do assunto.
+                  </p>
+                  <p className="text-[11px]" style={{ color: PALETTE.inkSoft }}>
+                    A Melissa vincula os flashcards e quizzes desta folha no painel da Árvore.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedLeaf(null);
+                      onSelectTab('flashcards');
+                    }}
+                    className="text-[11px] font-bold underline"
+                    style={{ color: PALETTE.terracotta }}
+                  >
+                    Ver todos os flashcards do nível →
+                  </button>
                 </div>
               )}
 

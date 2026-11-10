@@ -19,6 +19,8 @@ export interface SkillLeaf {
   skills: SkillAbility[];
   /** Atividades vinculadas do app. */
   linkedActivities: LinkedActivity[];
+  /** Categorias de flashcards/quizzes que são os exercícios desta folha. */
+  categories?: string[];
   /** Critério de check (ex: "80% no quiz + 10 flashcards"). */
   criterion: string;
   level: Level;

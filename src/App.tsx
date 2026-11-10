@@ -453,6 +453,12 @@ export function App() {
                       leaves={skillLeaves}
                       progress={skillProgress}
                       currentLevel={currentLevel}
+                      cards={allCardsWithModules}
+                      quizzes={allQuizzesWithModules}
+                      knownCardIds={knownCards}
+                      onMarkKnown={handleMarkKnown}
+                      onMarkReview={handleMarkReview}
+                      onQuizComplete={handleQuizComplete}
                       onMarkInProgress={handleSkillInProgress}
                       onMarkDominated={handleSkillDominated}
                       onSelectTab={(tab) => {
