@@ -24,6 +24,12 @@ export const WeeklyLessonRunner: React.FC<WeeklyLessonRunnerProps> = ({
   const [subTab, setSubTab] = useState<'flashcards' | 'quiz' | 'dictee' | 'oral'>('flashcards');
   const [isDone, setIsDone] = useState(false);
 
+  // Todo item aqui é da semana: o selo "Da aula da semana" aparece no topo de
+  // cada exercício, deixando claro que este é o único lugar desse conteúdo.
+  const weekCards = module.lessons.flashcards.map((c) => ({ ...c, fromModule: true }));
+  const weekQuizzes = module.lessons.quizzes.map((q) => ({ ...q, fromModule: true }));
+  const weekDictees = module.lessons.dictees.map((d) => ({ ...d, fromModule: true }));
+
   const handleFinishWeek = () => {
     studentPortalService.completeWeekLesson(student.id, module.id, 60);
     setIsDone(true);
@@ -160,7 +166,7 @@ export const WeeklyLessonRunner: React.FC<WeeklyLessonRunnerProps> = ({
         {subTab === 'flashcards' && (
           <div className="space-y-6">
             <FlashcardsView
-              cards={module.lessons.flashcards}
+              cards={weekCards}
               currentLevel={module.level}
               knownCardIds={[]}
               onMarkKnown={() => {}}
@@ -181,7 +187,7 @@ export const WeeklyLessonRunner: React.FC<WeeklyLessonRunnerProps> = ({
         {subTab === 'quiz' && (
           <div className="space-y-6">
             <QuizView
-              questions={module.lessons.quizzes}
+              questions={weekQuizzes}
               currentLevel={module.level}
               onQuizComplete={() => {}}
             />
@@ -200,7 +206,7 @@ export const WeeklyLessonRunner: React.FC<WeeklyLessonRunnerProps> = ({
         {subTab === 'oral' && (
           <div className="space-y-6">
             <OralView
-              items={module.lessons.dictees}
+              items={weekDictees}
               currentLevel={module.level}
             />
             <div className="text-center pt-4 border-t border-[#EBE4D8]">
@@ -219,7 +225,7 @@ export const WeeklyLessonRunner: React.FC<WeeklyLessonRunnerProps> = ({
         {subTab === 'dictee' && (
           <div className="space-y-6">
             <DicteeView
-              items={module.lessons.dictees}
+              items={weekDictees}
               currentLevel={module.level}
               onCompleteDictee={() => {}}
             />

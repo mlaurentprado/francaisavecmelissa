@@ -197,46 +197,15 @@ export function App() {
     setActiveTab('flashcards');
   };
 
-  // Filter content by selected level
-  const allFlashcards = flashcardService.getFlashcards();
+  // Catálogo de prática: programa fixo + o que a Melissa criou para todos.
+  // Conteúdo de uma semana específica só existe dentro da lição daquela aula,
+  // no Espaço do Aluno — aqui ele nunca se mistura com o catálogo.
+  const allCards = flashcardService.getFlashcards();
   const allQuizzes = quizService.getQuizzes();
-  // Reuse the flashcards/quizzes authored inside the students' weekly modules
-  // (visible to non-student users too, grouped by the module's level).
-  const weeklyModules = studentPortalService.getWeeklyModules();
-  const moduleFlashcards = weeklyModules.flatMap((m) => m.lessons?.flashcards ?? []);
-  const moduleQuizzes = weeklyModules.flatMap((m) => m.lessons?.quizzes ?? []);
-  const knownFlashcardIds = new Set(allFlashcards.map((c) => c.id));
-  const knownQuizIds = new Set(allQuizzes.map((q) => q.id));
-  const allCardsWithModules = [
-    ...allFlashcards,
-    ...moduleFlashcards
-      .filter(
-        (c) => c.french.trim() !== '' && c.portuguese.trim() !== '' && !knownFlashcardIds.has(c.id)
-      )
-      .map((c) => ({ ...c, fromModule: true })),
-  ];
-  const allQuizzesWithModules = [
-    ...allQuizzes,
-    ...moduleQuizzes
-      .filter(
-        (q) => q.question.trim() !== '' && q.options.some((o) => o.trim() !== '') && !knownQuizIds.has(q.id)
-      )
-      .map((q) => ({ ...q, fromModule: true })),
-  ];
-  const currentCards = allCardsWithModules.filter((c) => c.level === currentLevel);
-  const currentQuizzes = allQuizzesWithModules.filter((q) => q.level === currentLevel);
-  // Same for dictées: fixed program + teacher's own + module lesson dictées.
   const allDictees = dicteeService.getDictees();
-  const knownDicteeIds = new Set(allDictees.map((d) => d.id));
-  const moduleDictees = weeklyModules.flatMap((m) => m.lessons?.dictees ?? []);
-  const currentDictees = [
-    ...allDictees,
-    ...moduleDictees
-      .filter(
-        (d) => d.sentence.trim() !== '' && d.translation.trim() !== '' && !knownDicteeIds.has(d.id)
-      )
-      .map((d) => ({ ...d, fromModule: true })),
-  ].filter((d) => d.level === currentLevel);
+  const currentCards = allCards.filter((c) => c.level === currentLevel);
+  const currentQuizzes = allQuizzes.filter((q) => q.level === currentLevel);
+  const currentDictees = allDictees.filter((d) => d.level === currentLevel);
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] text-[#0F172A] flex flex-col selection:bg-[#8B2626]/10 selection:text-[#8B2626]">
@@ -361,6 +330,10 @@ export function App() {
                     {activeTab === 'revisions' && 'Meu Plano de Revisão Personalizado'}
                     {activeTab === 'skilltree' && 'Árvore de Habilidades & Conquistas'}
                   </h2>
+                  <p className="text-xs text-[#78644E] mt-1 max-w-2xl leading-relaxed">
+                    Conteúdo do programa e materiais liberados pela Melissa. A lição exclusiva de
+                    cada semana fica no Espaço do Aluno, dentro da aula correspondente.
+                  </p>
                 </div>
 
                 {/* Quick Level Pills Switcher */}
@@ -453,8 +426,8 @@ export function App() {
                       leaves={skillLeaves}
                       progress={skillProgress}
                       currentLevel={currentLevel}
-                      cards={allCardsWithModules}
-                      quizzes={allQuizzesWithModules}
+                      cards={allCards}
+                      quizzes={allQuizzes}
                       knownCardIds={knownCards}
                       onMarkKnown={handleMarkKnown}
                       onMarkReview={handleMarkReview}
@@ -480,7 +453,7 @@ export function App() {
 
                 {activeTab === 'revisions' && (
                   <RevisionsView
-                    cards={allCardsWithModules}
+                    cards={allCards}
                     reviewCardIds={reviewCards}
                     currentLevel={currentLevel}
                     onMarkKnown={handleMarkKnown}

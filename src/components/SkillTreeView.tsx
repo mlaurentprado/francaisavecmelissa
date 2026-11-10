@@ -445,6 +445,10 @@ export const SkillTreeView: React.FC<SkillTreeViewProps> = ({
                     </div>
                   </div>
 
+                  <p className="text-[11px]" style={{ color: PALETTE.inkSoft }}>
+                    São os mesmos cards e quizzes do catálogo, filtrados pelo assunto desta folha.
+                  </p>
+
                   {practiceMode === 'quiz' && leafQuizItems.length > 0 ? (
                     <QuizView
                       questions={leafQuizItems}
