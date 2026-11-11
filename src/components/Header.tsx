@@ -9,7 +9,6 @@ import {
   Smartphone,
   BookmarkCheck,
   TreePine,
-  User,
   GraduationCap,
   LogOut,
 } from 'lucide-react';
@@ -84,8 +83,8 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'hover:text-[#0F172A]'
               }`}
             >
-              <GraduationCap className="w-4 h-4 opacity-80 text-[#8B2626]" />
-              <span className="font-bold text-[#8B2626]">Espaço do Aluno</span>
+              <GraduationCap className="w-4 h-4 opacity-70" />
+              <span>Espaço do Aluno</span>
               {isStudentLoggedIn && (
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               )}
@@ -229,16 +228,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <LogOut className="w-3 h-3" />
                 </button>
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={onOpenLoginModal}
-                className="bg-[#8B2626] hover:bg-[#731E1E] text-white text-xs sm:text-sm font-semibold px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl transition-all shadow-xs hover:shadow-sm flex items-center gap-1.5 shrink-0"
-              >
-                <User className="w-3.5 h-3.5" />
-                <span>Área do Aluno</span>
-              </button>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -260,7 +250,7 @@ export const Header: React.FC<HeaderProps> = ({
               className={`shrink-0 px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-1.5 ${
                 activeTab === 'portal'
                   ? 'bg-[#8B2626] text-white'
-                  : 'text-[#8B2626] font-bold bg-[#FCE7E7]'
+                  : 'text-[#4B5563] hover:bg-[#F4EFE6]'
               }`}
             >
               <GraduationCap className="w-3.5 h-3.5" />

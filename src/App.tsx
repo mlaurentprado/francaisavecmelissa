@@ -22,7 +22,7 @@ import { flashcardService } from './services/flashcardService';
 import { FICHES_DATA } from './data/learningContent';
 import { dicteeService } from './services/dicteeService';
 import { quizService } from './services/quizService';
-import { Heart, Smartphone, GraduationCap, ArrowRight, Sparkles } from 'lucide-react';
+import { Heart, Smartphone, GraduationCap, Sparkles } from 'lucide-react';
 
 export function App() {
   const [currentLevel, setCurrentLevel] = useState<Level>(() => {
@@ -274,33 +274,6 @@ export function App() {
         ) : (
           /* VIEW 2: CATÁLOGO DE ESTUDOS E PRÁTICA LIVRE */
           <>
-            {/* Student Portal Quick Access Banner (Se não estiver logado) */}
-            {!session.currentUser && !session.isTeacher && (
-              <div className="bg-[#FAF7F2] border border-[#D4C8B8] rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#8B2626] text-white flex items-center justify-center shrink-0">
-                    <GraduationCap className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="font-cormorant text-xl font-bold text-[#0F172A]">
-                      É aluno(a) da Melissa? Acesse seus materiais semanais
-                    </h4>
-                    <p className="text-xs text-[#5A6578]">
-                      Acompanhe os resumos de cada aula, vídeos gravados, PDFs e lições de fixação.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsLoginModalOpen(true)}
-                  className="py-2.5 px-4 rounded-xl bg-[#8B2626] hover:bg-[#731E1E] text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 shrink-0"
-                >
-                  <span>Entrar no Espaço do Aluno</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
-
             {/* Hero Section */}
             <HeroSection
               onStartTraining={scrollToStudyArea}
@@ -336,23 +309,14 @@ export function App() {
                   </p>
                 </div>
 
-                {/* Quick Level Pills Switcher */}
-                <div className="flex items-center bg-white p-1 rounded-xl border border-[#EBE4D8] text-xs font-semibold self-start sm:self-auto shadow-2xs">
-                  {(['A1', 'A2', 'B1', 'C1'] as Level[]).map((lvl) => (
-                    <button
-                      key={lvl}
-                      type="button"
-                      onClick={() => setCurrentLevel(lvl)}
-                      className={`px-3 py-1.5 rounded-lg transition-all ${
-                        currentLevel === lvl
-                          ? 'bg-[#8B2626] text-white shadow-2xs'
-                          : 'text-[#5A6578] hover:text-[#0F172A]'
-                      }`}
-                    >
-                      {lvl}
-                    </button>
-                  ))}
-                </div>
+                {/* O nível é escolhido num lugar só: os cartões de níveis acima. */}
+                <button
+                  type="button"
+                  onClick={scrollToLevelsArea}
+                  className="text-xs font-bold text-[#8B2626] hover:underline self-start sm:self-auto shrink-0"
+                >
+                  Trocar nível ↑
+                </button>
               </div>
 
               {/* Module Content */}
@@ -507,25 +471,6 @@ export function App() {
               Feito com <Heart className="w-3.5 h-3.5 text-[#8B2626] fill-[#8B2626]" /> para os alunos
             </span>
           </p>
-          <div className="pt-1 flex items-center justify-center gap-4">
-            <button
-              type="button"
-              onClick={() => setIsInstallModalOpen(true)}
-              className="text-[#8B2626] hover:underline font-semibold text-xs inline-flex items-center gap-1"
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span>Adicionar app à tela inicial</span>
-            </button>
-            <span>•</span>
-            <button
-              type="button"
-              onClick={() => setIsLoginModalOpen(true)}
-              className="text-[#8B2626] hover:underline font-semibold text-xs inline-flex items-center gap-1"
-            >
-              <GraduationCap className="w-3.5 h-3.5" />
-              <span>Acesso Professora Melissa</span>
-            </button>
-          </div>
           <p className="text-[#8C7A6B]">
             © {new Date().getFullYear()} Français avec Melissa. Todos os direitos reservados.
           </p>
