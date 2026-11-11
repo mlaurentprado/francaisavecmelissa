@@ -6,15 +6,23 @@ import { LevelsSection } from './components/LevelsSection';
 import { FlashcardsView } from './components/FlashcardsView';
 import { QuizView } from './components/QuizView';
 import { DicteeView } from './components/DicteeView';
+import { OralView } from './components/OralView';
 import { FichesView } from './components/FichesView';
 import { RevisionsView } from './components/RevisionsView';
 import { InstallModal } from './components/InstallModal';
 import { StudentLoginModal } from './components/StudentPortal/StudentLoginModal';
 import { StudentDashboard } from './components/StudentPortal/StudentDashboard';
 import { TeacherDashboard } from './components/TeacherPortal/TeacherDashboard';
+import { SkillTreeView } from './components/SkillTreeView';
+import { AchievementsPanel } from './components/AchievementsPanel';
 import { studentPortalService } from './services/studentPortalService';
-import { FLASHCARDS_DATA, QUIZ_DATA, DICTEE_DATA, FICHES_DATA } from './data/learningContent';
-import { Heart, Smartphone, GraduationCap, ArrowRight, Sparkles } from 'lucide-react';
+import { skillTreeService } from './services/skillTreeService';
+import { LeafProgress, AchievementBadge } from './types';
+import { flashcardService } from './services/flashcardService';
+import { FICHES_DATA } from './data/learningContent';
+import { dicteeService } from './services/dicteeService';
+import { quizService } from './services/quizService';
+import { Heart, Smartphone, GraduationCap, Sparkles } from 'lucide-react';
 
 export function App() {
   const [currentLevel, setCurrentLevel] = useState<Level>(() => {
@@ -30,7 +38,29 @@ export function App() {
   });
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [dicteeMode, setDicteeMode] = useState<'dictee' | 'oral'>('dictee');
   const [syncSuccessMsg, setSyncSuccessMsg] = useState<string | null>(null);
+
+  // Árvore de Habilidades & Conquistas (galhos/folhas relidos a cada render,
+  // para refletir o que a professora criar no painel)
+  const skillBranches = skillTreeService.getBranches();
+  const skillLeaves = skillTreeService.getLeaves();
+  const [skillProgress, setSkillProgress] = useState<Record<string, LeafProgress>>(() => skillTreeService.getProgress());
+  const [unlockedBadges, setUnlockedBadges] = useState<Record<string, string>>(() => skillTreeService.getUnlockedBadges());
+
+  const handleSkillInProgress = (leafId: string) => {
+    skillTreeService.markInProgress(leafId);
+    setSkillProgress(skillTreeService.getProgress());
+  };
+
+  const handleSkillDominated = (leafId: string): AchievementBadge[] => {
+    const newBadges = skillTreeService.markDominated(leafId);
+    setSkillProgress(skillTreeService.getProgress());
+    if (newBadges.length > 0) {
+      setUnlockedBadges(skillTreeService.getUnlockedBadges());
+    }
+    return newBadges;
+  };
 
   // Portal session
   const [session, setSession] = useState<AuthSession>(() => studentPortalService.getCurrentSession());
@@ -81,11 +111,31 @@ export function App() {
     localStorage.setItem('fam_points_v2', totalPoints.toString());
   }, [totalPoints]);
 
+  // Avalia badges automáticos (marcos, sequência, desempenho) ao visitar a árvore
+  // ou quando o progresso do aluno muda.
+  useEffect(() => {
+    const before = skillTreeService.getUnlockedBadges();
+    const after = skillTreeService.evaluateBadges({
+      knownCardCount: knownCards.length,
+      activityLog: session.currentUser?.activityLog ?? [],
+    });
+    if (Object.keys(after).length !== Object.keys(before).length) {
+      setUnlockedBadges(after);
+    }
+  }, [activeTab, knownCards, session.currentUser]);
+
   const handleMarkKnown = (cardId: string) => {
     if (!knownCards.includes(cardId)) {
       setKnownCards((prev) => [...prev, cardId]);
       setReviewCards((prev) => prev.filter((id) => id !== cardId));
       setTotalPoints((prev) => prev + 15);
+      if (session.currentUser) {
+        studentPortalService.recordStudentActivity(session.currentUser.id, {
+          type: 'flashcards',
+          title: 'Flashcard dominado',
+          points: 15,
+        });
+      }
     }
   };
 
@@ -96,14 +146,30 @@ export function App() {
     }
   };
 
-  const handleQuizComplete = (score: number) => {
+  const handleQuizComplete = (score: number, total?: number) => {
     const earned = score * 25;
     setTotalPoints((prev) => prev + earned);
+    if (session.currentUser) {
+      studentPortalService.recordStudentActivity(session.currentUser.id, {
+        type: 'quiz',
+        title: 'Quiz de fixação',
+        score,
+        total,
+        points: earned,
+      });
+    }
   };
 
   const handleCompleteDictee = (_id: string, correct: boolean) => {
     if (correct) {
       setTotalPoints((prev) => prev + 25);
+      if (session.currentUser) {
+        studentPortalService.recordStudentActivity(session.currentUser.id, {
+          type: 'dictee',
+          title: 'Dictée concluída',
+          points: 25,
+        });
+      }
     }
   };
 
@@ -131,10 +197,15 @@ export function App() {
     setActiveTab('flashcards');
   };
 
-  // Filter content by selected level
-  const currentCards = FLASHCARDS_DATA.filter((c) => c.level === currentLevel);
-  const currentQuizzes = QUIZ_DATA.filter((q) => q.level === currentLevel);
-  const currentDictees = DICTEE_DATA.filter((d) => d.level === currentLevel);
+  // Catálogo de prática: programa fixo + o que a Melissa criou para todos.
+  // Conteúdo de uma semana específica só existe dentro da lição daquela aula,
+  // no Espaço do Aluno — aqui ele nunca se mistura com o catálogo.
+  const allCards = flashcardService.getFlashcards();
+  const allQuizzes = quizService.getQuizzes();
+  const allDictees = dicteeService.getDictees();
+  const currentCards = allCards.filter((c) => c.level === currentLevel);
+  const currentQuizzes = allQuizzes.filter((q) => q.level === currentLevel);
+  const currentDictees = allDictees.filter((d) => d.level === currentLevel);
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] text-[#0F172A] flex flex-col selection:bg-[#8B2626]/10 selection:text-[#8B2626]">
@@ -203,33 +274,6 @@ export function App() {
         ) : (
           /* VIEW 2: CATÁLOGO DE ESTUDOS E PRÁTICA LIVRE */
           <>
-            {/* Student Portal Quick Access Banner (Se não estiver logado) */}
-            {!session.currentUser && !session.isTeacher && (
-              <div className="bg-[#FAF7F2] border border-[#D4C8B8] rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#8B2626] text-white flex items-center justify-center shrink-0">
-                    <GraduationCap className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="font-cormorant text-xl font-bold text-[#0F172A]">
-                      É aluno(a) da Melissa? Acesse seus materiais semanais
-                    </h4>
-                    <p className="text-xs text-[#5A6578]">
-                      Acompanhe os resumos de cada aula, vídeos gravados, PDFs e lições de fixação.
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsLoginModalOpen(true)}
-                  className="py-2.5 px-4 rounded-xl bg-[#8B2626] hover:bg-[#731E1E] text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 shrink-0"
-                >
-                  <span>Entrar no Espaço do Aluno</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
-
             {/* Hero Section */}
             <HeroSection
               onStartTraining={scrollToStudyArea}
@@ -254,29 +298,25 @@ export function App() {
                   <h2 className="font-cormorant text-2xl sm:text-3xl font-bold text-[#0F172A]">
                     {activeTab === 'flashcards' && 'Flashcards & Pronúncia Nativa'}
                     {activeTab === 'quiz' && 'Exercícios & Fixação Pedagógica'}
-                    {activeTab === 'dictee' && 'Laboratório de Escuta & Dictée'}
+                    {activeTab === 'dictee' && "Dictée & Entraînement à l'oral"}
                     {activeTab === 'fiches' && 'Fiches Mémo da Professora'}
                     {activeTab === 'revisions' && 'Meu Plano de Revisão Personalizado'}
+                    {activeTab === 'skilltree' && 'Árvore de Habilidades & Conquistas'}
                   </h2>
+                  <p className="text-xs text-[#78644E] mt-1 max-w-2xl leading-relaxed">
+                    Conteúdo do programa e materiais liberados pela Melissa. A lição exclusiva de
+                    cada semana fica no Espaço do Aluno, dentro da aula correspondente.
+                  </p>
                 </div>
 
-                {/* Quick Level Pills Switcher */}
-                <div className="flex items-center bg-white p-1 rounded-xl border border-[#EBE4D8] text-xs font-semibold self-start sm:self-auto shadow-2xs">
-                  {(['A1', 'A2', 'B1', 'C1'] as Level[]).map((lvl) => (
-                    <button
-                      key={lvl}
-                      type="button"
-                      onClick={() => setCurrentLevel(lvl)}
-                      className={`px-3 py-1.5 rounded-lg transition-all ${
-                        currentLevel === lvl
-                          ? 'bg-[#8B2626] text-white shadow-2xs'
-                          : 'text-[#5A6578] hover:text-[#0F172A]'
-                      }`}
-                    >
-                      {lvl}
-                    </button>
-                  ))}
-                </div>
+                {/* O nível é escolhido num lugar só: os cartões de níveis acima. */}
+                <button
+                  type="button"
+                  onClick={scrollToLevelsArea}
+                  className="text-xs font-bold text-[#8B2626] hover:underline self-start sm:self-auto shrink-0"
+                >
+                  Trocar nível ↑
+                </button>
               </div>
 
               {/* Module Content */}
@@ -300,11 +340,75 @@ export function App() {
                 )}
 
                 {activeTab === 'dictee' && (
-                  <DicteeView
-                    items={currentDictees}
-                    currentLevel={currentLevel}
-                    onCompleteDictee={handleCompleteDictee}
-                  />
+                  <div className="space-y-6">
+                    <div className="flex justify-center">
+                      <div className="flex bg-white p-1 rounded-xl border border-[#EBE4D8] text-xs font-semibold shadow-2xs">
+                        <button
+                          type="button"
+                          onClick={() => setDicteeMode('dictee')}
+                          className={`px-4 py-1.5 rounded-lg transition-all ${
+                            dicteeMode === 'dictee'
+                              ? 'bg-[#8B2626] text-white shadow-2xs'
+                              : 'text-[#5A6578] hover:text-[#0F172A]'
+                          }`}
+                        >
+                          Dictée (escrita)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDicteeMode('oral')}
+                          className={`px-4 py-1.5 rounded-lg transition-all ${
+                            dicteeMode === 'oral'
+                              ? 'bg-[#8B2626] text-white shadow-2xs'
+                              : 'text-[#5A6578] hover:text-[#0F172A]'
+                          }`}
+                        >
+                          Entraînement à l'oral
+                        </button>
+                      </div>
+                    </div>
+
+                    {dicteeMode === 'dictee' ? (
+                      <DicteeView
+                        items={currentDictees}
+                        currentLevel={currentLevel}
+                        onCompleteDictee={handleCompleteDictee}
+                      />
+                    ) : (
+                      <OralView
+                        items={currentDictees}
+                        currentLevel={currentLevel}
+                      />
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'skilltree' && (
+                  <div className="space-y-8">
+                    <SkillTreeView
+                      branches={skillBranches}
+                      leaves={skillLeaves}
+                      progress={skillProgress}
+                      currentLevel={currentLevel}
+                      cards={allCards}
+                      quizzes={allQuizzes}
+                      knownCardIds={knownCards}
+                      onMarkKnown={handleMarkKnown}
+                      onMarkReview={handleMarkReview}
+                      onQuizComplete={handleQuizComplete}
+                      onMarkInProgress={handleSkillInProgress}
+                      onMarkDominated={handleSkillDominated}
+                      onSelectTab={(tab) => {
+                        setActiveTab(tab as typeof activeTab);
+                        scrollToStudyArea();
+                      }}
+                    />
+                    <AchievementsPanel
+                      badges={skillTreeService.getBadges()}
+                      unlocked={unlockedBadges}
+                      branches={skillBranches}
+                    />
+                  </div>
                 )}
 
                 {activeTab === 'fiches' && (
@@ -313,7 +417,7 @@ export function App() {
 
                 {activeTab === 'revisions' && (
                   <RevisionsView
-                    cards={FLASHCARDS_DATA}
+                    cards={allCards}
                     reviewCardIds={reviewCards}
                     currentLevel={currentLevel}
                     onMarkKnown={handleMarkKnown}
@@ -367,25 +471,6 @@ export function App() {
               Feito com <Heart className="w-3.5 h-3.5 text-[#8B2626] fill-[#8B2626]" /> para os alunos
             </span>
           </p>
-          <div className="pt-1 flex items-center justify-center gap-4">
-            <button
-              type="button"
-              onClick={() => setIsInstallModalOpen(true)}
-              className="text-[#8B2626] hover:underline font-semibold text-xs inline-flex items-center gap-1"
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span>Adicionar app à tela inicial</span>
-            </button>
-            <span>•</span>
-            <button
-              type="button"
-              onClick={() => setIsLoginModalOpen(true)}
-              className="text-[#8B2626] hover:underline font-semibold text-xs inline-flex items-center gap-1"
-            >
-              <GraduationCap className="w-3.5 h-3.5" />
-              <span>Acesso Professora Melissa</span>
-            </button>
-          </div>
           <p className="text-[#8C7A6B]">
             © {new Date().getFullYear()} Français avec Melissa. Todos os direitos reservados.
           </p>

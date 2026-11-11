@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { TabType, AuthSession } from '../types';
 import {
   Sparkles,
@@ -8,7 +8,7 @@ import {
   BookOpen,
   Smartphone,
   BookmarkCheck,
-  User,
+  TreePine,
   GraduationCap,
   LogOut,
 } from 'lucide-react';
@@ -37,14 +37,26 @@ export const Header: React.FC<HeaderProps> = ({
   const isStudentLoggedIn = session.currentUser !== null;
   const isTeacherLoggedIn = session.isTeacher;
 
+  // No celular a barra rola na horizontal: mantém a aba ativa à vista.
+  const mobileNavRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const box = mobileNavRef.current;
+    const active = box?.querySelector<HTMLElement>('[data-active="true"]');
+    if (!box || !active) return;
+    box.scrollTo({
+      left: Math.max(active.offsetLeft - (box.clientWidth - active.clientWidth) / 2, 0),
+      behavior: 'smooth',
+    });
+  }, [activeTab]);
+
   return (
     <header className="bg-[#FAF7F2]/95 backdrop-blur-md border-b border-[#EBE4D8] sticky top-0 z-40">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="h-16 sm:h-18 flex items-center justify-between gap-4">
           {/* Brand Logo with golden sparkle ✦ */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 shrink-0">
             <div className="flex items-center gap-1.5 cursor-pointer group" onClick={() => onSelectTab('flashcards')}>
-              <span className="font-cormorant text-lg sm:text-xl font-bold text-[#0F172A] tracking-normal group-hover:text-[#8B2626] transition-colors">
+              <span className="font-cormorant text-lg sm:text-xl font-bold text-[#0F172A] tracking-normal whitespace-nowrap group-hover:text-[#8B2626] transition-colors">
                 Français avec Melissa
               </span>
               <span className="text-[#C59B27] text-base select-none">✦</span>
@@ -55,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Desktop Navigation Tabs */}
-          <nav className="hidden md:flex items-center gap-4 lg:gap-6 text-sm font-medium text-[#4B5563]">
+          <nav className="hidden 2xl:flex items-center gap-4 lg:gap-6 text-sm font-medium text-[#4B5563]">
             {/* Espaço do Aluno Portal Tab */}
             <button
               onClick={() => {
@@ -71,8 +83,8 @@ export const Header: React.FC<HeaderProps> = ({
                   : 'hover:text-[#0F172A]'
               }`}
             >
-              <GraduationCap className="w-4 h-4 opacity-80 text-[#8B2626]" />
-              <span className="font-bold text-[#8B2626]">Espaço do Aluno</span>
+              <GraduationCap className="w-4 h-4 opacity-70" />
+              <span>Espaço do Aluno</span>
               {isStudentLoggedIn && (
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               )}
@@ -142,6 +154,18 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               )}
             </button>
+
+            <button
+              onClick={() => onSelectTab('skilltree')}
+              className={`transition-all relative py-1.5 flex items-center gap-1.5 ${
+                activeTab === 'skilltree'
+                  ? 'text-[#8B2626] font-semibold after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-[#8B2626]'
+                  : 'hover:text-[#0F172A]'
+              }`}
+            >
+              <TreePine className="w-4 h-4 opacity-70" />
+              <span>Árvore</span>
+            </button>
           </nav>
 
           {/* Right side: Login Status / Student Profile / Install / Points */}
@@ -204,86 +228,113 @@ export const Header: React.FC<HeaderProps> = ({
                   <LogOut className="w-3 h-3" />
                 </button>
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={onOpenLoginModal}
-                className="bg-[#8B2626] hover:bg-[#731E1E] text-white text-xs sm:text-sm font-semibold px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl transition-all shadow-xs hover:shadow-sm flex items-center gap-1.5 shrink-0"
-              >
-                <User className="w-3.5 h-3.5" />
-                <span>Área do Aluno</span>
-              </button>
-            )}
+            ) : null}
           </div>
         </div>
 
-        {/* Mobile Navigation Bar */}
-        <div className="md:hidden flex items-center justify-between border-t border-[#EBE4D8] py-2 overflow-x-auto no-scrollbar gap-2 text-xs font-semibold">
-          <button
-            onClick={() => {
-              if (!isStudentLoggedIn && !isTeacherLoggedIn) {
-                onOpenLoginModal();
-              } else {
-                onSelectTab('portal');
-              }
-            }}
-            className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-1.5 ${
-              activeTab === 'portal'
-                ? 'bg-[#8B2626] text-white'
-                : 'text-[#8B2626] font-bold bg-[#FCE7E7]'
-            }`}
+        {/* Mobile Navigation Bar — rola na horizontal com os nomes completos */}
+        <div className="2xl:hidden border-t border-[#EBE4D8] py-2">
+          <div
+            ref={mobileNavRef}
+            className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-fade text-xs font-semibold"
           >
-            <GraduationCap className="w-3.5 h-3.5" />
-            <span>Espaço Aluno</span>
-          </button>
+            <button
+              onClick={() => {
+                if (!isStudentLoggedIn && !isTeacherLoggedIn) {
+                  onOpenLoginModal();
+                } else {
+                  onSelectTab('portal');
+                }
+              }}
+              data-active={activeTab === 'portal'}
+              className={`shrink-0 px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                activeTab === 'portal'
+                  ? 'bg-[#8B2626] text-white'
+                  : 'text-[#4B5563] hover:bg-[#F4EFE6]'
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5" />
+              <span>Espaço Aluno</span>
+            </button>
 
-          <button
-            onClick={() => onSelectTab('flashcards')}
-            className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-1.5 ${
-              activeTab === 'flashcards'
-                ? 'bg-[#8B2626] text-white'
-                : 'text-[#4B5563] hover:bg-[#F4EFE6]'
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            <span>Cards</span>
-          </button>
+            <button
+              onClick={() => onSelectTab('flashcards')}
+              data-active={activeTab === 'flashcards'}
+              className={`shrink-0 px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                activeTab === 'flashcards'
+                  ? 'bg-[#8B2626] text-white'
+                  : 'text-[#4B5563] hover:bg-[#F4EFE6]'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Flashcards</span>
+            </button>
 
-          <button
-            onClick={() => onSelectTab('quiz')}
-            className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-1.5 ${
-              activeTab === 'quiz'
-                ? 'bg-[#8B2626] text-white'
-                : 'text-[#4B5563] hover:bg-[#F4EFE6]'
-            }`}
-          >
-            <HelpCircle className="w-3.5 h-3.5" />
-            <span>Quiz</span>
-          </button>
+            <button
+              onClick={() => onSelectTab('quiz')}
+              data-active={activeTab === 'quiz'}
+              className={`shrink-0 px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                activeTab === 'quiz'
+                  ? 'bg-[#8B2626] text-white'
+                  : 'text-[#4B5563] hover:bg-[#F4EFE6]'
+              }`}
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span>Quizzes</span>
+            </button>
 
-          <button
-            onClick={() => onSelectTab('dictee')}
-            className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-1.5 ${
-              activeTab === 'dictee'
-                ? 'bg-[#8B2626] text-white'
-                : 'text-[#4B5563] hover:bg-[#F4EFE6]'
-            }`}
-          >
-            <Headphones className="w-3.5 h-3.5" />
-            <span>Dictée</span>
-          </button>
+            <button
+              onClick={() => onSelectTab('dictee')}
+              data-active={activeTab === 'dictee'}
+              className={`shrink-0 px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                activeTab === 'dictee'
+                  ? 'bg-[#8B2626] text-white'
+                  : 'text-[#4B5563] hover:bg-[#F4EFE6]'
+              }`}
+            >
+              <Headphones className="w-3.5 h-3.5" />
+              <span>Dictée</span>
+            </button>
 
-          <button
-            onClick={() => onSelectTab('revisions')}
-            className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-1.5 ${
-              activeTab === 'revisions'
-                ? 'bg-[#8B2626] text-white'
-                : 'text-[#4B5563] hover:bg-[#F4EFE6]'
-            }`}
-          >
-            <BookmarkCheck className="w-3.5 h-3.5" />
-            <span>Revisões ({reviewCount})</span>
-          </button>
+            <button
+              onClick={() => onSelectTab('fiches')}
+              data-active={activeTab === 'fiches'}
+              className={`shrink-0 px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                activeTab === 'fiches'
+                  ? 'bg-[#8B2626] text-white'
+                  : 'text-[#4B5563] hover:bg-[#F4EFE6]'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Fichas</span>
+            </button>
+
+            <button
+              onClick={() => onSelectTab('revisions')}
+              data-active={activeTab === 'revisions'}
+              className={`shrink-0 px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                activeTab === 'revisions'
+                  ? 'bg-[#8B2626] text-white'
+                  : 'text-[#4B5563] hover:bg-[#F4EFE6]'
+              }`}
+            >
+              <BookmarkCheck className="w-3.5 h-3.5" />
+              <span>Revisões{reviewCount > 0 ? ` (${reviewCount})` : ''}</span>
+            </button>
+
+            <button
+              onClick={() => onSelectTab('skilltree')}
+              data-active={activeTab === 'skilltree'}
+              className={`shrink-0 px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                activeTab === 'skilltree'
+                  ? 'bg-[#8B2626] text-white'
+                  : 'text-[#4B5563] hover:bg-[#F4EFE6]'
+              }`}
+            >
+              <TreePine className="w-3.5 h-3.5" />
+              <span>Árvore</span>
+            </button>
+          </div>
         </div>
       </div>
     </header>
